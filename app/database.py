@@ -83,6 +83,10 @@ CREATE TABLE IF NOT EXISTS gcash_transactions (
     principal_amount    REAL NOT NULL,                      -- Computed principal (GCash amount)
     fee                 REAL NOT NULL,                      -- Computed fee (store income)
     total_collected     REAL NOT NULL,                      -- Cash collected from customer
+    reference_number    TEXT,                               -- GCash Reference No.
+    mobile_number       TEXT,                               -- Customer mobile number
+    receipt_image       TEXT,                               -- Base64 receipt capture image
+    gcash_timestamp     TEXT,                               -- GCash receipt actual date/time
     created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
 );

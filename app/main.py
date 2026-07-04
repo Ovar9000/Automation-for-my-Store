@@ -56,31 +56,37 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 @app.get("/", response_class=HTMLResponse)
 async def cashier_page(request: Request):
     """Cashier terminal — the main POS interface."""
-    return templates.TemplateResponse("cashier.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="cashier.html")
 
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_login_page(request: Request):
     """Admin login page."""
-    return templates.TemplateResponse("admin/login.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="admin/login.html")
 
 
 @app.get("/admin/dashboard", response_class=HTMLResponse)
 async def admin_dashboard_page(request: Request):
     """Admin dashboard — overview of today's performance."""
-    return templates.TemplateResponse("admin/dashboard.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="admin/dashboard.html")
 
 
 @app.get("/admin/inventory", response_class=HTMLResponse)
 async def admin_inventory_page(request: Request):
     """Admin inventory management page."""
-    return templates.TemplateResponse("admin/inventory.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="admin/inventory.html")
 
 
 @app.get("/admin/reports", response_class=HTMLResponse)
 async def admin_reports_page(request: Request):
     """Admin reports and analytics page."""
-    return templates.TemplateResponse("admin/reports.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="admin/reports.html")
+
+
+@app.get("/admin/gcash", response_class=HTMLResponse)
+async def admin_gcash_page(request: Request):
+    """Admin GCash transactions list page."""
+    return templates.TemplateResponse(request=request, name="admin/gcash.html")
 
 
 # ═══════════════════════════════════════════════════════════════

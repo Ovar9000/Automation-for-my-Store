@@ -119,6 +119,10 @@ class GCashTransactRequest(BaseModel):
     fee: float
     total_collected: float
     transaction_type: str = "GCASH_IN"  # 'GCASH_IN' or 'GCASH_OUT'
+    reference_number: Optional[str] = None
+    mobile_number: Optional[str] = None
+    receipt_image: Optional[str] = None
+    gcash_timestamp: Optional[str] = None
 
 
 # ═══════════════════════════════════════════════════════════════

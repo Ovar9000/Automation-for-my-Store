@@ -303,6 +303,13 @@ function cashierApp() {
       }
     },
 
+    openGcashModal(type) {
+      this.showGcashModal = true;
+      this.$nextTick(() => {
+        window.dispatchEvent(new CustomEvent('set-gcash-type', { detail: type }));
+      });
+    },
+
     // ── Keyboard Shortcuts ───────────────────────────────────
     handleKeyboard(event) {
       // Don't intercept if user is typing inside an input/textarea (except F-keys)
@@ -316,7 +323,7 @@ function cashierApp() {
           break;
         case 'F2':
           event.preventDefault();
-          this.showGcashModal = !this.showGcashModal;
+          this.openGcashModal('GCASH_IN');
           break;
         case 'F5':
           event.preventDefault();

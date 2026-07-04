@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GCash Audit - Sari-Sari Store POS</title>
+  <!-- Tailwind CSS v4 CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Alpine.js v3 CDN -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/custom.css">
+  <script src="/static/js/admin_gcash.js"></script>
+</head>
+<body class="bg-slate-50 font-sans min-h-screen antialiased flex flex-col" x-data="adminGcashApp()">
+
+  <!-- Top Nav Bar -->
+  <nav class="bg-white border-b border-slate-100 sticky top-0 z-50 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16">
+        <div class="flex items-center gap-8">
+          <div class="flex-shrink-0 flex items-center gap-2 font-bold text-slate-800 text-lg">
+            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                <path fill-rule="evenodd" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            Sari-Sari Store Admin
+          </div>
+          <div class="hidden md:flex space-x-4">
+            <a href="/admin/dashboard" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 border-b-2 px-3 py-2 text-sm font-semibold flex items-center gap-2">
+              Dashboard
+            </a>
+            <a href="/admin/inventory" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 border-b-2 px-3 py-2 text-sm font-semibold flex items-center gap-2">
+              Inventory
+            </a>
+            <a href="/admin/gcash" class="border-blue-500 text-blue-600 border-b-2 px-3 py-2 text-sm font-semibold flex items-center gap-2">
+              GCash Services
+            </a>
+            <a href="/admin/reports" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 border-b-2 px-3 py-2 text-sm font-semibold flex items-center gap-2">
+              Reports
+            </a>
+          </div>
+        </div>
+        <div class="flex items-center gap-4">
+          <a href="/" class="text-slate-500 hover:text-slate-700 text-sm font-semibold px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+            Cashier Mode
+          </a>
+          <button @click="logout()" class="text-red-500 hover:text-red-700 text-sm font-semibold px-3 py-2 rounded-lg hover:bg-red-50 transition-colors">
+            Logout
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+      <div>
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">GCash Transactions</h1>
+        <p class="text-slate-500 mt-1">Audit Cash-In & Cash-Out transfers, reference numbers, and scanned receipt snapshots</p>
+      </div>
+    </div>
+
+    <!-- Filters & Search Toolbar -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div class="flex flex-col sm:flex-row gap-4 w-full md:w-auto flex-grow">
+        <!-- Search Input -->
+        <div class="relative flex-grow max-w-md">
+          <input type="text" 
+                 x-model="searchQuery" 
+                 @input.debounce.300ms="filterTransactions()"
+                 placeholder="Search by Mobile, Ref No, or date..." 
+                 class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white text-sm transition-all text-slate-700 font-medium">
+          <div class="absolute left-3 top-3 text-slate-400">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+              <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z" clip-rule="evenodd" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- Category Dropdown Filter -->
+        <select x-model="typeFilter" 
+                @change="filterTransactions()"
+                class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-600 font-semibold min-w-[180px]">
+          <option value="">All Service Types</option>
+          <option value="GCASH_IN">📥 Cash-In Only</option>
+          <option value="GCASH_OUT">📤 Cash-Out Only</option>
+        </select>
+      </div>
+
+      <!-- Quick stats summary in filter bar -->
+      <div class="flex items-center gap-4 text-xs font-semibold text-slate-500 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 flex-shrink-0">
+        <div>
+          Transactions: <span class="text-slate-800 font-bold" x-text="filteredTransactions.length"></span>
+        </div>
+        <div class="w-px h-4 bg-slate-200"></div>
+        <div>
+          Total Fees: <span class="text-emerald-600 font-bold" x-text="formatCurrency(totalFeesEarned())"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transactions List Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-600">
+          <thead class="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold text-xs uppercase tracking-wider">
+            <tr>
+              <th class="py-4 px-6">System Log Time</th>
+              <th class="py-4 px-6">GCash Receipt Time</th>
+              <th class="py-4 px-6">Service Type</th>
+              <th class="py-4 px-6 text-right">Principal</th>
+              <th class="py-4 px-6 text-right">Fee Earned</th>
+              <th class="py-4 px-6 text-right">Total Cash</th>
+              <th class="py-4 px-6">Mobile Number</th>
+              <th class="py-4 px-6">Reference No.</th>
+              <th class="py-4 px-6 text-center">Receipt Pic</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <template x-if="filteredTransactions.length === 0">
+              <tr>
+                <td colspan="9" class="py-12 text-center text-slate-400">
+                  <div class="text-3xl mb-2 opacity-30">📱</div>
+                  <div class="text-sm font-semibold">No GCash transactions found</div>
+                  <div class="text-xs mt-1 text-slate-500">Record a Cash-In or Cash-Out transaction from the Cashier Terminal</div>
+                </td>
+              </tr>
+            </template>
+            <template x-for="txn in filteredTransactions" :key="txn.gcash_id">
+              <tr class="hover:bg-slate-50 transition-colors">
+                <!-- Log Time -->
+                <td class="py-4 px-6 whitespace-nowrap text-xs text-slate-400" x-text="formatSystemDate(txn.system_created_at)"></td>
+                
+                <!-- GCash Receipt Time -->
+                <td class="py-4 px-6 text-slate-700 font-semibold text-xs" x-text="txn.gcash_timestamp || '—'"></td>
+                
+                <!-- Service Type -->
+                <td class="py-4 px-6">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                        :class="txn.transaction_type === 'GCASH_IN' ? 'bg-blue-50 text-blue-700' : 'bg-indigo-50 text-indigo-700'">
+                    <span x-text="txn.transaction_type === 'GCASH_IN' ? '📥 Cash-In' : '📤 Cash-Out'"></span>
+                  </span>
+                </td>
+                
+                <!-- Numbers -->
+                <td class="py-4 px-6 text-right font-medium text-slate-500" x-text="formatCurrency(txn.principal_amount)"></td>
+                <td class="py-4 px-6 text-right font-bold text-emerald-600" x-text="formatCurrency(txn.fee)"></td>
+                <td class="py-4 px-6 text-right font-bold text-slate-800" x-text="formatCurrency(txn.total_collected)"></td>
+                
+                <!-- Details -->
+                <td class="py-4 px-6 font-mono text-xs font-semibold text-slate-600" x-text="txn.mobile_number || '—'"></td>
+                <td class="py-4 px-6 font-mono text-xs text-slate-500" x-text="txn.reference_number || '—'"></td>
+                
+                <!-- Image Snapshot preview trigger -->
+                <td class="py-4 px-6 text-center">
+                  <template x-if="txn.receipt_image">
+                    <button @click="openImageModal(txn.receipt_image, txn)" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200/50 px-2 py-1 rounded font-bold text-xs transition-colors cursor-pointer">
+                      📷 View
+                    </button>
+                  </template>
+                  <template x-if="!txn.receipt_image">
+                    <span class="text-xs text-slate-400 font-medium italic">None</span>
+                  </template>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Centered Image Pop-up modal -->
+  <div x-show="showImageModal" 
+       class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 modal-backdrop"
+       style="display: none;"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100">
+    
+    <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl p-5 border border-slate-100 flex flex-col space-y-4"
+         @click.away="showImageModal = false"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="scale-95 translate-y-4"
+         x-transition:enter-end="scale-100 translate-y-0">
+      
+      <!-- Header -->
+      <div class="flex justify-between items-center border-b border-slate-100 pb-2.5">
+        <div>
+          <h3 class="font-extrabold text-slate-800 text-sm" x-text="modalTxn ? (modalTxn.transaction_type === 'GCASH_IN' ? 'Cash-In Receipt' : 'Cash-Out Receipt') : ''"></h3>
+          <p class="text-[10px] text-slate-400 font-medium" x-text="modalTxn ? 'Ref: ' + modalTxn.reference_number : ''"></p>
+        </div>
+        <button @click="showImageModal = false" class="text-slate-400 hover:text-slate-600 font-bold text-sm">
+          ✕
+        </button>
+      </div>
+
+      <!-- Image display -->
+      <div class="rounded-xl border border-slate-200 bg-slate-950 overflow-hidden flex justify-center items-center h-96">
+        <img :src="modalImage" class="max-h-full max-w-full object-contain">
+      </div>
+
+      <!-- Transaction details -->
+      <template x-if="modalTxn">
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs space-y-1.5 font-medium text-slate-500">
+          <div class="flex justify-between"><span>Customer Number:</span><span class="font-bold font-mono text-slate-700" x-text="modalTxn.mobile_number || '—'"></span></div>
+          <div class="flex justify-between"><span>Receipt Timestamp:</span><span class="font-bold text-slate-700" x-text="modalTxn.gcash_timestamp || '—'"></span></div>
+          <div class="flex justify-between"><span>Amount Received:</span><span class="font-bold text-slate-800 text-sm" x-text="formatCurrency(modalTxn.total_collected)"></span></div>
+        </div>
+      </template>
+
+      <!-- Close Button -->
+      <button @click="showImageModal = false" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors cursor-pointer">
+        Close Preview
+      </button>
+
+    </div>
+  </div>
+
+</body>
+</html>

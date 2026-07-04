@@ -120,8 +120,9 @@ async def gcash_transact(data: GCashTransactRequest, db=Depends(get_db)):
     # ── Insert into gcash_transactions detail table ──────────────────
     cursor = await db.execute(
         """INSERT INTO gcash_transactions
-           (transaction_id, flow_type, input_amount, principal_amount, fee, total_collected)
-           VALUES (?, ?, ?, ?, ?, ?)""",
+           (transaction_id, flow_type, input_amount, principal_amount, fee, total_collected,
+            reference_number, mobile_number, receipt_image, gcash_timestamp)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             transaction_id,
             data.flow_type.upper(),
@@ -129,6 +130,10 @@ async def gcash_transact(data: GCashTransactRequest, db=Depends(get_db)):
             round(data.principal_amount, 2),
             round(data.fee, 2),
             round(data.total_collected, 2),
+            data.reference_number,
+            data.mobile_number,
+            data.receipt_image,
+            data.gcash_timestamp
         )
     )
     gcash_id = cursor.lastrowid
@@ -154,3 +159,32 @@ async def gcash_transact(data: GCashTransactRequest, db=Depends(get_db)):
         "gcash_detail": dict(gcash_row),
         "message": f"GCash {data.transaction_type} recorded successfully.",
     }
+
+
+@router.get("/gcash/transactions")
+async def list_gcash_transactions(db=Depends(get_db)):
+    """
+    List all GCash transactions recorded in the system.
+    """
+    cursor = await db.execute(
+        """SELECT 
+               t.id as transaction_id,
+               t.transaction_type,
+               t.total_amount,
+               t.created_at as system_created_at,
+               g.id as gcash_id,
+               g.flow_type,
+               g.input_amount,
+               g.principal_amount,
+               g.fee,
+               g.total_collected,
+               g.reference_number,
+               g.mobile_number,
+               g.receipt_image,
+               g.gcash_timestamp
+           FROM gcash_transactions g
+           JOIN transactions t ON g.transaction_id = t.id
+           ORDER BY t.created_at DESC"""
+    )
+    rows = await cursor.fetchall()
+    return [dict(row) for row in rows]

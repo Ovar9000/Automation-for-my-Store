@@ -23,6 +23,8 @@
   <!-- App Scripts -->
   <script src="/static/js/cashier.js"></script>
   <script src="/static/js/gcash.js"></script>
+  <!-- Tesseract.js for client-side receipt OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 
 <body class="h-screen overflow-hidden" x-data="cashierApp()" x-init="init()" @close-gcash.window="showGcashModal = false">
@@ -135,6 +137,30 @@
             </div>
           </template>
         </div>
+      </div>
+
+      <!-- FAST GCASH SERVICES (Tablet-Friendly Row) -->
+      <div class="grid grid-cols-2 gap-3 mb-2 flex-shrink-0">
+        <button
+          @click="openGcashModal('GCASH_IN')"
+          class="flex items-center justify-center gap-3.5 py-4 rounded-xl font-extrabold text-sm text-white shadow-lg bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-blue-500/10 cursor-pointer transition-all duration-200 active:scale-[0.98] border border-blue-400/20"
+        >
+          <span class="text-2xl drop-shadow">📥</span>
+          <div class="text-left">
+            <div class="font-bold text-white tracking-tight">GCash Cash-In</div>
+            <div class="text-[10px] text-blue-200 font-medium">Add customer balance</div>
+          </div>
+        </button>
+        <button
+          @click="openGcashModal('GCASH_OUT')"
+          class="flex items-center justify-center gap-3.5 py-4 rounded-xl font-extrabold text-sm text-white shadow-lg bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 shadow-indigo-500/10 cursor-pointer transition-all duration-200 active:scale-[0.98] border border-indigo-400/20"
+        >
+          <span class="text-2xl drop-shadow">📤</span>
+          <div class="text-left">
+            <div class="font-bold text-white tracking-tight">GCash Cash-Out</div>
+            <div class="text-[10px] text-indigo-200 font-medium">Pay customer cash</div>
+          </div>
+        </button>
       </div>
 
       <!-- QUICK BUTTONS GRID -->
@@ -296,11 +322,11 @@
           </div>
 
           <!-- Payment Buttons -->
-          <div class="grid grid-cols-2 gap-2">
+          <div class="w-full">
             <button
               @click="processPayment('CASH')"
               :disabled="isProcessing || cart.length === 0"
-              class="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white shadow-lg transition-all duration-200
+              class="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white shadow-lg transition-all duration-200
                      bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400
                      shadow-emerald-500/20 hover:shadow-emerald-500/30
                      disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-emerald-600 disabled:hover:to-emerald-500"
@@ -309,33 +335,27 @@
                 <div class="spinner"></div>
               </template>
               <template x-if="!isProcessing">
-                <span>💵 CASH - Pay</span>
+                <span>💵 Complete Sale (CASH / GCash)</span>
               </template>
               <span class="kbd text-[9px] ml-1">F5</span>
-            </button>
-            <button
-              @click="showGcashModal = true"
-              class="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white shadow-lg transition-all duration-200
-                     bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400
-                     shadow-blue-500/20 hover:shadow-blue-500/30"
-            >
-              📱 GCash
-              <span class="kbd text-[9px] ml-1">F2</span>
             </button>
           </div>
 
           <!-- Secondary Actions -->
-          <div class="grid grid-cols-2 gap-2">
+          <div class="grid grid-cols-3 gap-2">
             <button @click="clearCart()"
                     :disabled="cart.length === 0"
                     class="py-2 rounded-lg text-xs font-semibold text-slate-400 bg-slate-800/60 border border-slate-700/50 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 transition-all duration-200
                            disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-slate-800/60 disabled:hover:text-slate-400 disabled:hover:border-slate-700/50">
-              🗑️ Clear Cart
+              🗑️ Clear
+            </button>
+            <button @click="showGcashModal = true"
+                    class="py-2 rounded-lg text-xs font-semibold text-slate-400 bg-slate-800/60 border border-slate-700/50 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30 transition-all duration-200">
+              📱 GCash (F2)
             </button>
             <button @click="printZReport()"
                     class="py-2 rounded-lg text-xs font-semibold text-slate-400 bg-slate-800/60 border border-slate-700/50 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30 transition-all duration-200">
-              📊 End of Day
-              <span class="kbd text-[9px] ml-1">F8</span>
+              📊 Z-Report (F8)
             </button>
           </div>
         </div>
@@ -426,12 +446,13 @@
       <!-- Modal Header -->
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-xl shadow-lg shadow-blue-500/20">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-xl shadow-lg shadow-blue-500/20"
+               :class="transactionType === 'GCASH_IN' ? 'from-blue-500 to-blue-700' : 'from-indigo-500 to-indigo-700'">
             📱
           </div>
           <div>
-            <h3 class="text-lg font-bold text-white">GCash Transaction</h3>
-            <p class="text-xs text-slate-400">Process Cash-In / Cash-Out</p>
+            <h3 class="text-lg font-bold text-white" x-text="transactionType === 'GCASH_IN' ? 'GCash Cash-In' : 'GCash Cash-Out'"></h3>
+            <p class="text-xs text-slate-400" x-text="step === 1 ? (transactionType === 'GCASH_IN' ? 'Send money to customer balance' : 'Pay customer cash from balance') : 'Verify Details & Receipt'"></p>
           </div>
         </div>
         <button @click="reset(); $dispatch('close-gcash')"
@@ -440,90 +461,220 @@
         </button>
       </div>
 
-      <!-- Flow Type Tabs -->
-      <div class="flex gap-2 p-1 rounded-xl bg-slate-800/60">
-        <div class="gcash-tab" :class="{ 'active': flowType === 'A' }" @click="switchFlow('A')">
-          <div class="font-semibold">Flow A</div>
-          <div class="text-[10px] mt-0.5 opacity-80">I know the principal</div>
+      <!-- STEP 1: Fee Calculation -->
+      <div class="space-y-5" x-show="step === 1" x-transition>
+        <!-- Flow Type Tabs (Only shown for non-Cash-In if any) -->
+        <div class="flex gap-2 p-1 rounded-xl bg-slate-800/60" x-show="transactionType !== 'GCASH_IN'">
+          <div class="gcash-tab" :class="{ 'active': flowType === 'A' }" @click="switchFlow('A')">
+            <div class="font-semibold">Flow A</div>
+            <div class="text-[10px] mt-0.5 opacity-80">I know the principal</div>
+          </div>
+          <div class="gcash-tab" :class="{ 'active': flowType === 'B' }" @click="switchFlow('B')">
+            <div class="font-semibold">Flow B</div>
+            <div class="text-[10px] mt-0.5 opacity-80">Customer gave me total</div>
+          </div>
         </div>
-        <div class="gcash-tab" :class="{ 'active': flowType === 'B' }" @click="switchFlow('B')">
-          <div class="font-semibold">Flow B</div>
-          <div class="text-[10px] mt-0.5 opacity-80">Customer gave me total</div>
+
+        <!-- Amount Input -->
+        <div>
+          <label class="text-xs text-slate-400 mb-1 block"
+                 x-text="flowType === 'A' ? 'Principal Amount' : 'Total from Customer'"></label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 font-bold">₱</span>
+            <input
+              type="number"
+              x-model="amount"
+              @input="scheduleCalculate()"
+              step="1"
+              min="0"
+              placeholder="0"
+              class="w-full pl-10 pr-4 py-3.5 rounded-xl bg-slate-800/80 border border-slate-600/50 text-white text-xl font-bold placeholder:text-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all duration-200"
+            >
+            <div x-show="isCalculating" class="absolute inset-y-0 right-0 pr-4 flex items-center">
+              <div class="spinner"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calculation Result -->
+        <template x-if="result">
+          <div class="rounded-xl bg-slate-800/60 border border-slate-700/50 p-4 space-y-2.5">
+            <div class="flex justify-between text-sm">
+              <span class="text-slate-400">Principal</span>
+              <span class="text-white font-semibold" x-text="formatPrice(result.principal_amount)"></span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-slate-400">Service Fee</span>
+              <span class="text-amber-400 font-semibold" x-text="formatPrice(result.fee)"></span>
+            </div>
+            <div class="border-t border-slate-700/50 pt-2.5 flex justify-between text-base">
+              <span class="text-slate-300 font-medium">Total to Collect</span>
+              <span class="text-emerald-400 font-extrabold text-lg" x-text="formatPrice(result.total_collected)"></span>
+            </div>
+          </div>
+        </template>
+
+        <!-- Actions Step 1 -->
+        <div class="grid grid-cols-2 gap-3 pt-1">
+          <button @click="reset(); $dispatch('close-gcash')"
+                  class="py-3 rounded-xl font-semibold text-sm text-slate-300 bg-slate-700/60 hover:bg-slate-700 transition-all duration-200">
+            Cancel
+          </button>
+          <button @click="nextStep()"
+                  :disabled="!result"
+                  class="py-3 rounded-xl font-bold text-sm text-white shadow-lg transition-all duration-200
+                         bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400
+                         shadow-blue-500/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            <span>Next: Verification</span>
+            <span>➔</span>
+          </button>
         </div>
       </div>
 
-      <!-- Transaction Type Toggle -->
-      <div>
-        <label class="text-xs text-slate-400 mb-2 block">Transaction Type</label>
-        <div class="flex gap-2">
-          <div class="tx-type-btn"
-               :class="{ 'active-in': transactionType === 'GCASH_IN' }"
-               @click="transactionType = 'GCASH_IN'">
-            📥 Cash-In
+      <!-- STEP 2: Scanned Verification Screen -->
+      <div class="space-y-4" x-show="step === 2" style="display: none;" x-transition>
+        
+        <!-- Live view / Capture card -->
+        <div class="relative overflow-hidden rounded-xl border border-slate-700/50 bg-slate-900 flex flex-col justify-center items-center h-48">
+          
+          <!-- OCR Scanning Overlay -->
+          <div x-show="isOcrScanning" class="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center text-center z-20 rounded-xl">
+            <div class="spinner mb-3 w-8 h-8"></div>
+            <span class="text-xs text-blue-400 font-bold tracking-wider animate-pulse">READING RECEIPT (OCR)...</span>
+            <span class="text-[10px] text-slate-500 mt-1">Extracting numbers automatically</span>
           </div>
-          <div class="tx-type-btn"
-               :class="{ 'active-out': transactionType === 'GCASH_OUT' }"
-               @click="transactionType = 'GCASH_OUT'">
-            📤 Cash-Out
+
+          <!-- Camera Feed -->
+          <template x-if="useCamera && !receiptImage">
+            <video id="scanner-video" class="w-full h-full object-cover rounded-xl"></video>
+          </template>
+          
+          <!-- Viewfinder Scanner overlays when camera active and not snapped -->
+          <div x-show="useCamera && !receiptImage" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <!-- Red pulsing laser line -->
+            <div class="w-[85%] h-0.5 bg-red-500 absolute animate-pulse" style="box-shadow: 0 0 10px #ef4444;"></div>
+            <div class="border-2 border-dashed border-blue-400/40 w-24 h-24 rounded-lg"></div>
+          </div>
+
+          <!-- Mock Viewfinder when camera blocked / mock layout -->
+          <div x-show="!useCamera && !receiptImage" class="flex flex-col items-center justify-center text-center p-4">
+            <div class="relative w-28 h-20 border border-slate-700 bg-slate-950/80 rounded flex flex-col justify-center items-center overflow-hidden">
+              <div class="w-full h-0.5 bg-red-500 absolute" style="box-shadow: 0 0 8px #ef4444; animation: scanLineMove 2.2s infinite linear;"></div>
+              <span class="text-xl">📷</span>
+            </div>
+            <span class="text-xs text-slate-500 mt-2 font-medium">Virtual Camera Viewfinder Active</span>
+            <span class="text-[10px] text-slate-600 mt-0.5">Click Simulate OCR below to scan instantly</span>
+          </div>
+
+          <!-- Captured receipt preview -->
+          <template x-if="receiptImage">
+            <div class="w-full h-full relative">
+              <img :src="receiptImage" class="w-full h-full object-cover rounded-xl animate-fade">
+              <div class="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl">
+                <span class="bg-emerald-500 text-white rounded-full px-3 py-1.5 font-bold shadow text-xs flex items-center gap-1">
+                  ✓ Receipt Captured
+                </span>
+              </div>
+            </div>
+          </template>
+
+          <!-- Floating Snapshot trigger button -->
+          <div x-show="!receiptImage" class="absolute bottom-2">
+            <button @click="captureSnapshot()" class="bg-blue-600 hover:bg-blue-500 text-white rounded-full px-4 py-1.5 text-xs font-bold shadow-lg shadow-blue-500/20 active:scale-95 transition-all cursor-pointer">
+              📸 Capture Receipt
+            </button>
+          </div>
+          <div x-show="receiptImage" class="absolute bottom-2">
+            <button @click="receiptImage = null; startCamera()" class="bg-slate-800 hover:bg-slate-700 text-white rounded-full px-4 py-1.5 text-xs font-bold shadow border border-slate-700 active:scale-95 transition-all cursor-pointer">
+              🔄 Retake Photo
+            </button>
           </div>
         </div>
-      </div>
 
-      <!-- Amount Input -->
-      <div>
-        <label class="text-xs text-slate-400 mb-1 block"
-               x-text="flowType === 'A' ? 'Principal Amount' : 'Total from Customer'"></label>
-        <div class="relative">
-          <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 font-bold">₱</span>
-          <input
-            type="number"
-            x-model="amount"
-            @input="scheduleCalculate()"
-            step="1"
-            min="0"
-            placeholder="0"
-            class="w-full pl-10 pr-4 py-3.5 rounded-xl bg-slate-800/80 border border-slate-600/50 text-white text-xl font-bold placeholder:text-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all duration-200"
-          >
-          <div x-show="isCalculating" class="absolute inset-y-0 right-0 pr-4 flex items-center">
-            <div class="spinner"></div>
+        <!-- Phone number, Ref field, Date field -->
+        <div class="space-y-3">
+          
+          <!-- Gross Amount (Extracted or Manual) -->
+          <div>
+            <label class="text-xs text-slate-400 mb-1 block"
+                   x-text="transactionType === 'GCASH_IN' ? 'Cash-In Principal Amount' : 'Total Amount Sent (Gross)'"></label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 font-bold">₱</span>
+              <input
+                type="number"
+                x-model="amount"
+                @input="scheduleCalculate()"
+                step="1"
+                min="0"
+                placeholder="0"
+                class="w-full pl-8 pr-4 py-2 rounded-lg bg-slate-800/80 border border-slate-600/50 text-white text-base font-bold placeholder:text-slate-600 focus:border-blue-500 transition-all font-mono"
+              >
+            </div>
+          </div>
+
+          <!-- Fee Calculations Preview -->
+          <template x-if="result">
+            <div class="bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/30 text-xs flex justify-between gap-4 font-semibold text-slate-450">
+              <div>
+                Pay Cust: <span class="text-white font-bold" x-text="formatPrice(result.principal_amount)"></span>
+              </div>
+              <div>
+                Fee Earned: <span class="text-amber-400 font-bold" x-text="formatPrice(result.fee)"></span>
+              </div>
+              <div>
+                Gross Total: <span class="text-emerald-400 font-bold" x-text="formatPrice(result.total_collected)"></span>
+              </div>
+            </div>
+          </template>
+
+          <div>
+            <label class="text-xs text-slate-400 mb-1 block">Recipient Mobile Number</label>
+            <input
+              type="tel"
+              x-model="mobileNumber"
+              placeholder="e.g. 09171234567"
+              class="w-full px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-600/50 text-white text-base font-semibold placeholder:text-slate-600 focus:border-blue-500 transition-all font-mono"
+            >
+          </div>
+
+          <div>
+            <label class="text-xs text-slate-400 mb-1 block">GCash Reference No.</label>
+            <input
+              type="text"
+              x-model="referenceNumber"
+              placeholder="e.g. 5042504295085"
+              class="w-full px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-600/50 text-white text-base font-semibold placeholder:text-slate-600 focus:border-blue-500 transition-all font-mono"
+            >
+          </div>
+
+          <div>
+            <label class="text-xs text-slate-400 mb-1 block">Receipt Date & Time</label>
+            <input
+              type="text"
+              x-model="gcashTimestamp"
+              placeholder="e.g. Jul 03, 2026 5:27 PM"
+              class="w-full px-3 py-2 rounded-lg bg-slate-800/80 border border-slate-600/50 text-white text-base font-semibold placeholder:text-slate-600 focus:border-blue-500 transition-all font-mono"
+            >
           </div>
         </div>
-      </div>
 
-      <!-- Calculation Result -->
-      <template x-if="result">
-        <div class="rounded-xl bg-slate-800/60 border border-slate-700/50 p-4 space-y-2.5">
-          <div class="flex justify-between text-sm">
-            <span class="text-slate-400">Principal</span>
-            <span class="text-white font-semibold" x-text="formatPrice(result.principal_amount)"></span>
-          </div>
-          <div class="flex justify-between text-sm">
-            <span class="text-slate-400">Service Fee</span>
-            <span class="text-amber-400 font-semibold" x-text="formatPrice(result.fee)"></span>
-          </div>
-          <div class="border-t border-slate-700/50 pt-2.5 flex justify-between text-base">
-            <span class="text-slate-300 font-medium">Total to Collect</span>
-            <span class="text-emerald-400 font-extrabold text-lg" x-text="formatPrice(result.total_collected)"></span>
-          </div>
+        <!-- Error Message (Step 2) -->
+        <div x-show="error" class="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2" x-text="error" style="display: none;"></div>
+
+        <!-- Step 2 Actions -->
+        <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/60">
+          <button @click="transactionType === 'GCASH_OUT' ? (reset(), $dispatch('close-gcash')) : prevStep()" class="py-2.5 rounded-lg font-semibold text-xs text-slate-400 bg-slate-800 border border-slate-700/50 hover:bg-slate-700/50 transition-all cursor-pointer">
+            ← Cancel
+          </button>
+          <button @click="simulateOCR(Alpine.$data(document.querySelector('[x-data=&quot;cashierApp()&quot;]')))" class="py-2.5 rounded-lg font-semibold text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all cursor-pointer">
+            ⚡ Sim Scan
+          </button>
+          <button @click="confirm(Alpine.$data(document.querySelector('[x-data=&quot;cashierApp()&quot;]')))"
+                  :disabled="(transactionType === 'GCASH_IN' && !mobileNumber.trim()) || (transactionType === 'GCASH_OUT' && (!mobileNumber.trim() || !referenceNumber.trim()))"
+                  class="py-2.5 rounded-lg font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed shadow transition-all cursor-pointer">
+            ✓ Submit
+          </button>
         </div>
-      </template>
-
-      <!-- Error Message -->
-      <div x-show="error" class="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2" x-text="error" style="display: none;"></div>
-
-      <!-- Actions -->
-      <div class="grid grid-cols-2 gap-3 pt-1">
-        <button @click="reset(); $dispatch('close-gcash')"
-                class="py-3 rounded-xl font-semibold text-sm text-slate-300 bg-slate-700/60 hover:bg-slate-700 transition-all duration-200">
-          Cancel
-        </button>
-        <button @click="confirm(Alpine.$data(document.querySelector('[x-data=&quot;cashierApp()&quot;]')))"
-                :disabled="!result"
-                class="py-3 rounded-xl font-bold text-sm text-white shadow-lg transition-all duration-200
-                       bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400
-                       shadow-blue-500/20 disabled:opacity-40 disabled:cursor-not-allowed">
-          ✓ Confirm
-        </button>
       </div>
     </div>
   </div>
