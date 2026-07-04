@@ -1,8 +1,9 @@
 # Sari-Sari POS — Agent Status
 
 ## Project: Sari-Sari Store POS System
-- **Status**: Completed / Ready for Deployment
+- **Status**: Completed / Pushed to GitHub Repository
 - **Completed**: 2026-07-04
+- **Remote Repo**: https://github.com/Ovar9000/Automation-for-my-Store.git
 - **Tech Stack**: FastAPI (v0.139.0) + SQLite (WAL mode) + Tailwind CSS v4 + Alpine.js (v3)
 
 ## Features Implemented
@@ -33,3 +34,5 @@
 - **Subagent Rate Limits**: During development, parallel subagents hit the `RESOURCE_EXHAUSTED 429` rate limit. In these situations, the parent agent must gracefully take over and complete code creation sequentially.
 - **Route Ordering in FastAPI**: Defined paths like `/products/low-stock` and `/products/barcode/{barcode}` *before* parameterized paths like `/products/{id}`. Otherwise, FastAPI interprets paths like "low-stock" as an item ID, leading to casting errors.
 - **FastAPI Mount Catch-All**: Keep REST API route definitions above static mounts. Static mounting with `html=True` acts as a wildcard catch-all, which would intercept API calls if registered first.
+- **Git Workspace Isolation & DB Exclusion**: For nested projects, initializing a dedicated git repository prevents staging user home directory files. Additionally, adding `data/store.db` to `.gitignore` ensures that the active/local database state is excluded from commits.
+
