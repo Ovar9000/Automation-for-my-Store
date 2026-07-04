@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sari-Sari POS — Cashier</title>
+  <meta name="description" content="Sari-Sari Store Point of Sale — fast cashier terminal with barcode scanning, quick buttons, and GCash support.">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS v4 (browser CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/custom.css">
+
+  <!-- Alpine.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+
+  <!-- App Scripts -->
+  <script src="/static/js/cashier.js"></script>
+  <script src="/static/js/gcash.js"></script>
+</head>
+
+<body class="h-screen overflow-hidden" x-data="cashierApp()" x-init="init()" @close-gcash.window="showGcashModal = false">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       NOTIFICATION TOAST
+       ═══════════════════════════════════════════════════════════ -->
+  <div x-show="notification.show"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0 translate-x-4 -translate-y-2"
+       x-transition:enter-end="opacity-100 translate-x-0 translate-y-0"
+       x-transition:leave="transition ease-in duration-200"
+       x-transition:leave-start="opacity-100 translate-x-0"
+       x-transition:leave-end="opacity-0 translate-x-8"
+       class="notification"
+       :class="notification.type"
+       style="display: none;">
+    <template x-if="notification.type === 'success'">
+      <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    </template>
+    <template x-if="notification.type === 'error'">
+      <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    </template>
+    <template x-if="notification.type === 'info'">
+      <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    </template>
+    <span x-text="notification.message" class="truncate"></span>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════
+       MAIN LAYOUT — 60 / 40 Split
+       ═══════════════════════════════════════════════════════════ -->
+  <main class="flex h-screen" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+
+    <!-- ═══════════ LEFT PANEL (60%) ═══════════════════════════ -->
+    <section class="w-[60%] flex flex-col p-4 gap-3 overflow-hidden">
+
+      <!-- HEADER BAR -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-xl font-bold shadow-lg shadow-emerald-500/20">
+            🏪
+          </div>
+          <div>
+            <h1 class="text-lg font-bold text-white leading-tight">Sari-Sari POS</h1>
+            <p class="text-xs text-slate-400">Cashier Terminal</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-slate-500" x-text="new Date().toLocaleDateString('en-PH', {weekday:'short', year:'numeric', month:'short', day:'numeric'})"></span>
+          <span class="text-xs text-emerald-400 font-mono" x-text="new Date().toLocaleTimeString('en-PH')"></span>
+        </div>
+      </div>
+
+      <!-- BARCODE INPUT -->
+      <div class="relative">
+        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+          </svg>
+        </div>
+        <input
+          type="text"
+          id="barcode-input"
+          x-model="barcodeInput"
+          @keydown.enter.prevent="scanBarcode()"
+          placeholder="Scan barcode or type product code…"
+          autocomplete="off"
+          class="w-full pl-12 pr-20 py-3.5 rounded-xl bg-slate-800/80 border border-slate-600/50 text-white text-lg font-medium placeholder:text-slate-500 focus:border-emerald-500 transition-all duration-200"
+        >
+        <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+          <span class="kbd">F1</span>
+        </div>
+      </div>
+
+      <!-- PRODUCT SEARCH -->
+      <div class="relative">
+        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+        </div>
+        <input
+          type="text"
+          x-model="searchQuery"
+          @input.debounce.250ms="searchProducts()"
+          @blur="closeSearch()"
+          placeholder="Search products by name…"
+          autocomplete="off"
+          class="w-full pl-11 pr-4 py-2.5 rounded-xl bg-slate-800/60 border border-slate-700/50 text-sm text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all duration-200"
+        >
+
+        <!-- Search Results Dropdown -->
+        <div x-show="searchResults.length > 0" class="search-dropdown" style="display: none;">
+          <template x-for="product in searchResults" :key="product.id">
+            <div class="search-item" @click="selectSearchResult(product)">
+              <div>
+                <span class="text-sm font-medium text-white" x-text="product.name"></span>
+                <span class="text-xs text-slate-400 ml-2" x-text="product.unit ? `(${product.unit})` : ''"></span>
+              </div>
+              <span class="text-sm font-semibold text-emerald-400" x-text="formatPrice(product.selling_price)"></span>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- QUICK BUTTONS GRID -->
+      <div class="flex-1 overflow-y-auto pr-1" style="scrollbar-width: thin; scrollbar-color: rgba(100,116,139,0.3) transparent;">
+        <div class="grid grid-cols-3 gap-2.5">
+          <template x-for="item in quickItems" :key="item.id">
+            <button
+              class="quick-btn rounded-xl p-3 flex flex-col items-center justify-center text-center min-h-[100px] shadow-lg"
+              :style="`background: ${item.quick_button_color || '#334155'};`"
+              @click="addQuickItem(item)"
+            >
+              <span class="text-white font-bold text-sm leading-tight drop-shadow-sm" x-text="item.name"></span>
+              <span class="text-white/80 text-xs mt-1 font-medium" x-text="formatPrice(item.selling_price)"></span>
+              <span class="text-white/50 text-[10px] mt-0.5 uppercase tracking-wider" x-text="item.unit === 'kg' ? 'per kg' : item.unit === 'L' ? 'per L' : 'each'"></span>
+            </button>
+          </template>
+        </div>
+
+        <!-- Empty state if no quick items -->
+        <template x-if="quickItems.length === 0">
+          <div class="flex flex-col items-center justify-center h-40 text-slate-500">
+            <svg class="w-12 h-12 mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+            </svg>
+            <p class="text-sm">No quick buttons configured</p>
+            <p class="text-xs text-slate-600 mt-1">Add items in the Admin panel</p>
+          </div>
+        </template>
+      </div>
+
+      <!-- KEYBOARD SHORTCUTS HINT -->
+      <div class="flex items-center gap-4 text-[11px] text-slate-500 pt-1">
+        <span><span class="kbd">F1</span> Barcode</span>
+        <span><span class="kbd">F2</span> GCash</span>
+        <span><span class="kbd">F5</span> Pay</span>
+        <span><span class="kbd">F8</span> Z-Report</span>
+        <span><span class="kbd">ESC</span> Close</span>
+      </div>
+    </section>
+
+
+    <!-- ═══════════ RIGHT PANEL — CART (40%) ══════════════════ -->
+    <section class="w-[40%] flex flex-col p-4 pl-1">
+      <div class="glass rounded-2xl flex flex-col h-full overflow-hidden">
+
+        <!-- Cart Header -->
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06]">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/>
+            </svg>
+            <h2 class="text-base font-bold text-white">Cart</h2>
+            <span class="badge bg-emerald-500/20 text-emerald-400" x-text="totalItems"></span>
+          </div>
+          <button @click="clearCart()" class="text-xs text-slate-400 hover:text-red-400 transition-colors flex items-center gap-1"
+                  :class="{ 'opacity-30 pointer-events-none': cart.length === 0 }">
+            <span>🗑️</span> Clear
+          </button>
+        </div>
+
+        <!-- Cart Items (Scrollable) -->
+        <div class="flex-1 overflow-y-auto cart-scroll px-3 py-2 space-y-1.5">
+
+          <!-- Empty Cart -->
+          <template x-if="cart.length === 0">
+            <div class="flex flex-col items-center justify-center h-full text-slate-500 select-none">
+              <div class="empty-cart-icon mb-3">🛒</div>
+              <p class="text-sm font-medium">Cart is empty</p>
+              <p class="text-xs text-slate-600 mt-1">Scan a barcode or tap a quick button</p>
+            </div>
+          </template>
+
+          <!-- Cart Items List -->
+          <template x-for="(item, index) in cart" :key="item.product_id + '-' + index">
+            <div class="cart-item glass-light rounded-lg px-3 py-2.5 flex items-center gap-2.5 group">
+
+              <!-- Item Info -->
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-white truncate" x-text="item.product_name"></p>
+                <div class="flex items-center gap-2 mt-0.5">
+                  <!-- Quantity (click to edit) -->
+                  <template x-if="editingCartIndex !== index">
+                    <span class="text-xs text-emerald-400 font-medium cursor-pointer hover:underline"
+                          @click="startEditingQty(index)"
+                          x-text="formatQty(item)">
+                    </span>
+                  </template>
+                  <template x-if="editingCartIndex === index">
+                    <input
+                      :id="`qty-edit-${index}`"
+                      type="number"
+                      step="any"
+                      min="0"
+                      x-model="editingQty"
+                      @keydown.enter.prevent="updateQuantity(index, editingQty)"
+                      @keydown.escape.prevent="editingCartIndex = -1"
+                      @blur="updateQuantity(index, editingQty)"
+                      class="qty-edit-input"
+                    >
+                  </template>
+                  <span class="text-[11px] text-slate-500">×</span>
+                  <span class="text-xs text-slate-400" x-text="formatPrice(item.unit_price)"></span>
+                </div>
+              </div>
+
+              <!-- Subtotal -->
+              <div class="text-right flex-shrink-0">
+                <p class="text-sm font-bold text-white" x-text="formatPrice(item.subtotal)"></p>
+              </div>
+
+              <!-- Remove Button -->
+              <button class="remove-btn opacity-0 group-hover:opacity-100" @click="removeFromCart(index)" title="Remove item">
+                ✕
+              </button>
+            </div>
+          </template>
+        </div>
+
+        <!-- Cart Footer / Payment Area -->
+        <div class="border-t border-white/[0.06] px-5 py-3 space-y-3">
+
+          <!-- Total -->
+          <div class="flex items-center justify-between" id="cart-total">
+            <span class="text-sm font-medium text-slate-400">Total</span>
+            <span class="text-2xl font-extrabold text-emerald-400" x-text="formatPrice(total)"></span>
+          </div>
+
+          <!-- Print Receipt Toggle -->
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-400 flex items-center gap-1.5">
+              <span>🖨️</span> Print Receipt
+            </span>
+            <label class="toggle-switch">
+              <input type="checkbox" x-model="printReceipt">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <!-- Amount Tendered -->
+          <div>
+            <label class="text-xs text-slate-400 mb-1 block">Amount Tendered</label>
+            <input
+              type="number"
+              x-model="amountTendered"
+              placeholder="0.00"
+              step="0.01"
+              min="0"
+              class="w-full px-3 py-2.5 rounded-lg bg-slate-800/80 border border-slate-600/50 text-white text-lg font-semibold placeholder:text-slate-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-all duration-200"
+            >
+          </div>
+
+          <!-- Change Display -->
+          <div class="flex items-center justify-between py-1 px-3 rounded-lg"
+               :class="change > 0 ? 'bg-emerald-500/10' : 'bg-slate-800/40'">
+            <span class="text-xs font-medium text-slate-400">Change</span>
+            <span class="text-lg font-bold"
+                  :class="change > 0 ? 'text-emerald-400' : 'text-slate-500'"
+                  x-text="formatPrice(change)"></span>
+          </div>
+
+          <!-- Payment Buttons -->
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              @click="processPayment('CASH')"
+              :disabled="isProcessing || cart.length === 0"
+              class="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white shadow-lg transition-all duration-200
+                     bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400
+                     shadow-emerald-500/20 hover:shadow-emerald-500/30
+                     disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-emerald-600 disabled:hover:to-emerald-500"
+            >
+              <template x-if="isProcessing">
+                <div class="spinner"></div>
+              </template>
+              <template x-if="!isProcessing">
+                <span>💵 CASH - Pay</span>
+              </template>
+              <span class="kbd text-[9px] ml-1">F5</span>
+            </button>
+            <button
+              @click="showGcashModal = true"
+              class="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white shadow-lg transition-all duration-200
+                     bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400
+                     shadow-blue-500/20 hover:shadow-blue-500/30"
+            >
+              📱 GCash
+              <span class="kbd text-[9px] ml-1">F2</span>
+            </button>
+          </div>
+
+          <!-- Secondary Actions -->
+          <div class="grid grid-cols-2 gap-2">
+            <button @click="clearCart()"
+                    :disabled="cart.length === 0"
+                    class="py-2 rounded-lg text-xs font-semibold text-slate-400 bg-slate-800/60 border border-slate-700/50 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 transition-all duration-200
+                           disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-slate-800/60 disabled:hover:text-slate-400 disabled:hover:border-slate-700/50">
+              🗑️ Clear Cart
+            </button>
+            <button @click="printZReport()"
+                    class="py-2 rounded-lg text-xs font-semibold text-slate-400 bg-slate-800/60 border border-slate-700/50 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30 transition-all duration-200">
+              📊 End of Day
+              <span class="kbd text-[9px] ml-1">F8</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+
+  <!-- ═══════════════════════════════════════════════════════════
+       WEIGHT / QUANTITY MODAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div x-show="showWeightModal"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop"
+       @click.self="showWeightModal = false"
+       style="display: none;">
+    <div class="modal-content glass rounded-2xl p-6 w-full max-w-sm mx-4 space-y-4" @click.stop>
+
+      <!-- Modal Header -->
+      <div class="text-center">
+        <div class="text-3xl mb-2">⚖️</div>
+        <h3 class="text-lg font-bold text-white" x-text="selectedWeightItem?.name || 'Item'"></h3>
+        <p class="text-sm text-slate-400 mt-1">
+          Enter <span x-text="selectedWeightItem?.unit === 'kg' ? 'weight (kg)' : 'volume (L)'"></span>
+        </p>
+        <p class="text-sm text-emerald-400 font-semibold mt-1" x-text="selectedWeightItem ? `${formatPrice(selectedWeightItem.selling_price)} per ${selectedWeightItem.unit}` : ''"></p>
+      </div>
+
+      <!-- Weight Input -->
+      <div>
+        <input
+          type="number"
+          x-model="weightInput"
+          @keydown.enter.prevent="addWeightedItem()"
+          step="0.01"
+          min="0.01"
+          placeholder="0.00"
+          autofocus
+          class="w-full px-4 py-4 rounded-xl bg-slate-800/80 border border-slate-600/50 text-white text-3xl font-bold text-center placeholder:text-slate-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 transition-all duration-200"
+        >
+      </div>
+
+      <!-- Subtotal Preview -->
+      <div class="text-center py-2 px-4 rounded-lg bg-slate-800/60"
+           x-show="weightInput && parseFloat(weightInput) > 0">
+        <span class="text-xs text-slate-400">Subtotal: </span>
+        <span class="text-lg font-bold text-emerald-400"
+              x-text="selectedWeightItem ? formatPrice(parseFloat(weightInput || 0) * selectedWeightItem.selling_price) : ''"></span>
+      </div>
+
+      <!-- Actions -->
+      <div class="grid grid-cols-2 gap-3">
+        <button @click="showWeightModal = false; selectedWeightItem = null; weightInput = '';"
+                class="py-3 rounded-xl font-semibold text-sm text-slate-300 bg-slate-700/60 hover:bg-slate-700 transition-all duration-200">
+          Cancel
+        </button>
+        <button @click="addWeightedItem()"
+                class="py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 shadow-lg shadow-emerald-500/20 transition-all duration-200">
+          ✓ Add to Cart
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════
+       GCASH MODAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div x-show="showGcashModal"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop"
+       @click.self="showGcashModal = false"
+       style="display: none;">
+    <div class="modal-content glass rounded-2xl p-6 w-full max-w-md mx-4 space-y-5"
+         x-data="gcashApp()" x-ref="gcashInner" @click.stop>
+
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-xl shadow-lg shadow-blue-500/20">
+            📱
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white">GCash Transaction</h3>
+            <p class="text-xs text-slate-400">Process Cash-In / Cash-Out</p>
+          </div>
+        </div>
+        <button @click="reset(); $dispatch('close-gcash')"
+                class="w-8 h-8 rounded-lg bg-slate-700/60 hover:bg-slate-600/80 flex items-center justify-center text-slate-400 hover:text-white transition-all duration-200">
+          ✕
+        </button>
+      </div>
+
+      <!-- Flow Type Tabs -->
+      <div class="flex gap-2 p-1 rounded-xl bg-slate-800/60">
+        <div class="gcash-tab" :class="{ 'active': flowType === 'A' }" @click="switchFlow('A')">
+          <div class="font-semibold">Flow A</div>
+          <div class="text-[10px] mt-0.5 opacity-80">I know the principal</div>
+        </div>
+        <div class="gcash-tab" :class="{ 'active': flowType === 'B' }" @click="switchFlow('B')">
+          <div class="font-semibold">Flow B</div>
+          <div class="text-[10px] mt-0.5 opacity-80">Customer gave me total</div>
+        </div>
+      </div>
+
+      <!-- Transaction Type Toggle -->
+      <div>
+        <label class="text-xs text-slate-400 mb-2 block">Transaction Type</label>
+        <div class="flex gap-2">
+          <div class="tx-type-btn"
+               :class="{ 'active-in': transactionType === 'GCASH_IN' }"
+               @click="transactionType = 'GCASH_IN'">
+            📥 Cash-In
+          </div>
+          <div class="tx-type-btn"
+               :class="{ 'active-out': transactionType === 'GCASH_OUT' }"
+               @click="transactionType = 'GCASH_OUT'">
+            📤 Cash-Out
+          </div>
+        </div>
+      </div>
+
+      <!-- Amount Input -->
+      <div>
+        <label class="text-xs text-slate-400 mb-1 block"
+               x-text="flowType === 'A' ? 'Principal Amount' : 'Total from Customer'"></label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 font-bold">₱</span>
+          <input
+            type="number"
+            x-model="amount"
+            @input="scheduleCalculate()"
+            step="1"
+            min="0"
+            placeholder="0"
+            class="w-full pl-10 pr-4 py-3.5 rounded-xl bg-slate-800/80 border border-slate-600/50 text-white text-xl font-bold placeholder:text-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all duration-200"
+          >
+          <div x-show="isCalculating" class="absolute inset-y-0 right-0 pr-4 flex items-center">
+            <div class="spinner"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calculation Result -->
+      <template x-if="result">
+        <div class="rounded-xl bg-slate-800/60 border border-slate-700/50 p-4 space-y-2.5">
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-400">Principal</span>
+            <span class="text-white font-semibold" x-text="formatPrice(result.principal_amount)"></span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-400">Service Fee</span>
+            <span class="text-amber-400 font-semibold" x-text="formatPrice(result.fee)"></span>
+          </div>
+          <div class="border-t border-slate-700/50 pt-2.5 flex justify-between text-base">
+            <span class="text-slate-300 font-medium">Total to Collect</span>
+            <span class="text-emerald-400 font-extrabold text-lg" x-text="formatPrice(result.total_collected)"></span>
+          </div>
+        </div>
+      </template>
+
+      <!-- Error Message -->
+      <div x-show="error" class="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2" x-text="error" style="display: none;"></div>
+
+      <!-- Actions -->
+      <div class="grid grid-cols-2 gap-3 pt-1">
+        <button @click="reset(); $dispatch('close-gcash')"
+                class="py-3 rounded-xl font-semibold text-sm text-slate-300 bg-slate-700/60 hover:bg-slate-700 transition-all duration-200">
+          Cancel
+        </button>
+        <button @click="confirm(Alpine.$data(document.querySelector('[x-data=&quot;cashierApp()&quot;]')))"
+                :disabled="!result"
+                class="py-3 rounded-xl font-bold text-sm text-white shadow-lg transition-all duration-200
+                       bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400
+                       shadow-blue-500/20 disabled:opacity-40 disabled:cursor-not-allowed">
+          ✓ Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

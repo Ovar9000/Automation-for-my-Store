@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Sari-Sari Store POS</title>
+  <!-- Tailwind CSS v4 CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Alpine.js v3 CDN -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/custom.css">
+  <script src="/static/js/admin.js"></script>
+</head>
+<body class="bg-slate-50 font-sans min-h-screen antialiased flex flex-col" x-data="adminDashboard()">
+
+  <!-- Top Nav Bar -->
+  <nav class="bg-white border-b border-slate-100 sticky top-0 z-50 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16">
+        <div class="flex items-center gap-8">
+          <div class="flex-shrink-0 flex items-center gap-2 font-bold text-slate-800 text-lg">
+            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                <path fill-rule="evenodd" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            Sari-Sari Store Admin
+          </div>
+          <div class="hidden md:flex space-x-4">
+            <a href="/admin/dashboard" class="border-blue-500 text-blue-600 border-b-2 px-3 py-2 text-sm font-semibold flex items-center gap-2">
+              Dashboard
+            </a>
+            <a href="/admin/inventory" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 border-b-2 px-3 py-2 text-sm font-semibold flex items-center gap-2">
+              Inventory
+            </a>
+            <a href="/admin/reports" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 border-b-2 px-3 py-2 text-sm font-semibold flex items-center gap-2">
+              Reports
+            </a>
+          </div>
+        </div>
+        <div class="flex items-center gap-4">
+          <a href="/" class="text-slate-500 hover:text-slate-700 text-sm font-semibold px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
+            Cashier Mode
+          </a>
+          <button @click="logout()" class="text-red-500 hover:text-red-700 text-sm font-semibold px-3 py-2 rounded-lg hover:bg-red-50 transition-colors">
+            Logout
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    
+    <!-- Header with Welcome -->
+    <div class="flex justify-between items-center">
+      <div>
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Dashboard Overview</h1>
+        <p class="text-slate-500 mt-1">Live metrics and daily monitoring status</p>
+      </div>
+      <button @click="loadDashboard()" class="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl shadow-sm flex items-center gap-2 text-sm transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4" :class="isLoading ? 'animate-spin' : ''">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+        </svg>
+        Refresh
+      </button>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      
+      <!-- Card 1: Today's Sales -->
+      <div class="bg-white overflow-hidden shadow-sm rounded-2xl border border-slate-100 p-6 flex items-center gap-4">
+        <div class="p-3 bg-emerald-50 rounded-xl text-emerald-600">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6">
+            <path fill-rule="evenodd" d="M1 4a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4Zm12 4a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM4 5.25a.75.75 0 1 0 0 1.5h.01a.75.75 0 1 0 0-1.5H4Zm12 5a.75.75 0 1 0 0-1.5h-.01a.75.75 0 1 0 0 1.5H16Z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div>
+          <p class="text-sm font-semibold text-slate-400">Today's Sales</p>
+          <h3 class="text-2xl font-bold text-slate-800 mt-1" x-text="report ? formatCurrency(report.total_sales) : '₱0.00'"></h3>
+        </div>
+      </div>
+
+      <!-- Card 2: Transactions -->
+      <div class="bg-white overflow-hidden shadow-sm rounded-2xl border border-slate-100 p-6 flex items-center gap-4">
+        <div class="p-3 bg-blue-50 rounded-xl text-blue-600">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6">
+            <path fill-rule="evenodd" d="M2.5 3A1.5 1.5 0 0 0 1 4.5v11A1.5 1.5 0 0 0 2.5 17h15a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 17.5 3h-15ZM10 5.75a.75.75 0 0 1 .75.75v3.5h3.5a.75.75 0 0 1 0 1.5h-4.25a.75.75 0 0 1-.75-.75V6.5a.75.75 0 0 1 .75-.75Z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div>
+          <p class="text-sm font-semibold text-slate-400">Transactions</p>
+          <h3 class="text-2xl font-bold text-slate-800 mt-1" x-text="report ? report.transaction_count : 0"></h3>
+        </div>
+      </div>
+
+      <!-- Card 3: GCash Fees -->
+      <div class="bg-white overflow-hidden shadow-sm rounded-2xl border border-slate-100 p-6 flex items-center gap-4">
+        <div class="p-3 bg-purple-50 rounded-xl text-purple-600">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6">
+            <path d="M12 9a1 1 0 0 1-1-1V3c0-.553-.45-1.007-.997-.93a7.004 7.004 0 0 0-5.933 5.933C4.007 8.55 4.55 9 5.1 9h6.9ZM12 11H5.1c-.55 0-1.093.45-.98 1.003a7.003 7.003 0 0 0 5.933 5.933c.547.077.997-.477.997-1.03V11ZM14 3.1c0-.55.45-1.007.997-.93a7.004 7.004 0 0 1 5.933 5.933C20.993 8.55 20.55 9 20 9h-6V3.1ZM14 11v5.9c0 .553.45 1.007.997.93a7.004 7.004 0 0 0 5.933-5.933c.063-.55-.38-1.007-.93-1.007h-6Z" />
+          </svg>
+        </div>
+        <div>
+          <p class="text-sm font-semibold text-slate-400">GCash Fees</p>
+          <h3 class="text-2xl font-bold text-slate-800 mt-1" x-text="report ? formatCurrency(report.total_gcash_fees) : '₱0.00'"></h3>
+        </div>
+      </div>
+
+      <!-- Card 4: Net Profit -->
+      <div class="bg-white overflow-hidden shadow-sm rounded-2xl border border-slate-100 p-6 flex items-center gap-4">
+        <div class="p-3 bg-teal-50 rounded-xl text-teal-600">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6">
+            <path fill-rule="evenodd" d="M12.577 4.878a.75.75 0 0 1 .919-.53l4.75 1.25a.75.75 0 0 1 .53.919l-1.25 4.75a.75.75 0 1 1-1.45-.38l.687-2.606-7.147 7.147a.75.75 0 0 1-1.06 0L5.3 12.18l-3.22 3.22a.75.75 0 1 1-1.06-1.06l3.75-3.75a.75.75 0 0 1 1.06 0l3.25 3.25 6.617-6.617-2.606.687a.75.75 0 0 1-.919-.53Z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div>
+          <p class="text-sm font-semibold text-slate-400">Net Profit</p>
+          <h3 class="text-2xl font-bold text-teal-600 mt-1" x-text="report ? formatCurrency(report.net_profit + report.total_gcash_fees) : '₱0.00'"></h3>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Alert / Table grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      
+      <!-- Left side: Low stock alerts -->
+      <div class="bg-white shadow-sm border border-slate-100 rounded-2xl p-6 lg:col-span-1 flex flex-col">
+        <div class="flex items-center gap-2 pb-4 mb-4 border-b border-slate-100 text-amber-600">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+          </svg>
+          <h2 class="font-bold text-lg text-slate-800">Low Stock Alerts</h2>
+        </div>
+        <div class="overflow-y-auto flex-grow max-h-[350px]">
+          <template x-if="lowStockProducts.length === 0">
+            <div class="text-slate-400 text-sm py-8 text-center">
+              All items sufficiently stocked!
+            </div>
+          </template>
+          <template x-if="lowStockProducts.length > 0">
+            <ul class="divide-y divide-slate-50">
+              <template x-for="item in lowStockProducts" :key="item.id">
+                <li class="py-3 flex justify-between items-center">
+                  <div>
+                    <p class="font-semibold text-slate-700 text-sm" x-text="item.name"></p>
+                    <p class="text-xs text-slate-400" x-text="'Cat: ' + item.category"></p>
+                  </div>
+                  <div class="text-right">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-600" x-text="item.stock_qty + ' ' + item.unit"></span>
+                    <p class="text-xs text-slate-400 mt-0.5" x-text="'Min: ' + item.low_stock_threshold"></p>
+                  </div>
+                </li>
+              </template>
+            </ul>
+          </template>
+        </div>
+      </div>
+
+      <!-- Right side: Recent Transactions -->
+      <div class="bg-white shadow-sm border border-slate-100 rounded-2xl p-6 lg:col-span-2 flex flex-col">
+        <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+          <h2 class="font-bold text-lg text-slate-800">Recent Transactions (Today)</h2>
+          <span class="text-xs text-slate-400">Shows last 20</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-600">
+            <thead>
+              <tr class="text-slate-400 font-semibold text-xs border-b border-slate-50 uppercase tracking-wider">
+                <th class="py-3">Time</th>
+                <th class="py-3">Type</th>
+                <th class="py-3">Payment</th>
+                <th class="py-3 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <template x-if="recentTransactions.length === 0">
+                <tr>
+                  <td colspan="4" class="py-8 text-center text-slate-400">No transactions recorded yet today.</td>
+                </tr>
+              </template>
+              <template x-for="txn in recentTransactions" :key="txn.id">
+                <tr class="hover:bg-slate-50 transition-colors">
+                  <td class="py-3.5" x-text="txn.created_at.split('T')[1].substring(0,5)"></td>
+                  <td class="py-3.5">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                          :class="{
+                            'bg-green-50 text-green-700': txn.transaction_type === 'SALE',
+                            'bg-blue-50 text-blue-700': txn.transaction_type === 'GCASH_IN',
+                            'bg-purple-50 text-purple-700': txn.transaction_type === 'GCASH_OUT'
+                          }"
+                          x-text="txn.transaction_type">
+                    </span>
+                  </td>
+                  <td class="py-3.5 font-medium text-slate-500" x-text="txn.payment_method"></td>
+                  <td class="py-3.5 text-right font-bold text-slate-800" x-text="formatCurrency(txn.total_amount)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+</body>
+</html>
