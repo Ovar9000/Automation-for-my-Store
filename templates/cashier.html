@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sari-Sari POS — Cashier</title>
-  <meta name="description" content="Sari-Sari Store Point of Sale — fast cashier terminal with barcode scanning, quick buttons, and GCash support.">
+  <title>Sari-Sari POS — Cashier (Keyboard Mode)</title>
+  <meta name="description" content="Sari-Sari Store Point of Sale — keyboard-first cashier terminal with barcode scanning, smart search, and full keyboard navigation.">
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -42,31 +42,31 @@
        class="notification"
        :class="notification.type"
        style="display: none;">
-    <template x-if="notification.type === 'success'">
+    <span x-show="notification.type === 'success'" style="display:none;">
       <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
-    </template>
-    <template x-if="notification.type === 'error'">
+    </span>
+    <span x-show="notification.type === 'error'" style="display:none;">
       <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
-    </template>
-    <template x-if="notification.type === 'info'">
+    </span>
+    <span x-show="notification.type === 'info'" style="display:none;">
       <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
-    </template>
+    </span>
     <span x-text="notification.message" class="truncate"></span>
   </div>
 
 
   <!-- ═══════════════════════════════════════════════════════════
-       MAIN LAYOUT — 60 / 40 Split
+       MAIN LAYOUT — 60 / 40 Split (Keyboard-First)
        ═══════════════════════════════════════════════════════════ -->
   <main class="flex h-screen" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
 
-    <!-- ═══════════ LEFT PANEL (60%) ═══════════════════════════ -->
+    <!-- ═══════════ LEFT PANEL (60%) — SCAN & SEARCH ════════ -->
     <section class="w-[60%] flex flex-col p-4 gap-3 overflow-hidden">
 
       <!-- HEADER BAR -->
@@ -77,127 +77,187 @@
           </div>
           <div>
             <h1 class="text-lg font-bold text-white leading-tight">Sari-Sari POS</h1>
-            <p class="text-xs text-slate-400">Cashier Terminal</p>
+            <p class="text-xs text-slate-400">Keyboard Mode</p>
           </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
+          <!-- Context Mode Indicator -->
+          <div class="context-indicator"
+               :class="{
+                 'mode-scan': contextMode === 'scan',
+                 'mode-search': contextMode === 'search',
+                 'mode-cart': contextMode === 'cart',
+                 'mode-pay': contextMode === 'pay'
+               }">
+            <div class="scan-status" :class="{ 'inactive': contextMode !== 'scan' }"></div>
+            <span x-text="contextMode === 'scan' ? 'READY TO SCAN' :
+                          contextMode === 'search' ? 'SEARCHING' :
+                          contextMode === 'cart' ? 'CART NAV' : 'PAYMENT'"></span>
+          </div>
           <span class="text-xs text-slate-500" x-text="new Date().toLocaleDateString('en-PH', {weekday:'short', year:'numeric', month:'short', day:'numeric'})"></span>
-          <span class="text-xs text-emerald-400 font-mono" x-text="new Date().toLocaleTimeString('en-PH')"></span>
         </div>
       </div>
 
-      <!-- BARCODE INPUT -->
+      <!-- ═══════════════════════════════════════════════════════
+           HERO SMART INPUT (Barcode + Search merged)
+           ═══════════════════════════════════════════════════════ -->
       <div class="relative">
         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-          <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
           </svg>
         </div>
         <input
           type="text"
-          id="barcode-input"
-          x-model="barcodeInput"
-          @keydown.enter.prevent="scanBarcode()"
-          placeholder="Scan barcode or type product code…"
+          id="smart-input"
+          x-model="smartInput"
+          @input.debounce.200ms="onSmartInput()"
+          @keydown.enter.prevent="onSmartEnter()"
+          placeholder="Scan barcode or type product name…"
           autocomplete="off"
-          class="w-full pl-12 pr-20 py-3.5 rounded-xl bg-slate-800/80 border border-slate-600/50 text-white text-lg font-medium placeholder:text-slate-500 focus:border-emerald-500 transition-all duration-200"
+          class="w-full pl-14 pr-32 py-4 rounded-xl bg-slate-800/80 border-2 border-slate-600/50 text-white text-xl font-semibold placeholder:text-slate-500 transition-all duration-200"
         >
-        <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+        <div class="absolute inset-y-0 right-0 pr-3 flex items-center gap-2">
+          <span class="text-xs text-slate-500 hidden sm:inline"
+                x-text="inputLooksLikeBarcode || !smartInput ? 'Enter to scan' : '↑↓ navigate'"></span>
           <span class="kbd">F1</span>
         </div>
       </div>
 
-      <!-- PRODUCT SEARCH -->
-      <div class="relative">
-        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-          <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-          </svg>
-        </div>
-        <input
-          type="text"
-          x-model="searchQuery"
-          @input.debounce.250ms="searchProducts()"
-          @blur="closeSearch()"
-          placeholder="Search products by name…"
-          autocomplete="off"
-          class="w-full pl-11 pr-4 py-2.5 rounded-xl bg-slate-800/60 border border-slate-700/50 text-sm text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all duration-200"
-        >
+      <!-- ═══════════════════════════════════════════════════════
+           SEARCH RESULTS (Keyboard Navigable)
+           ═══════════════════════════════════════════════════════ -->
+      <div x-show="searchResults.length > 0"
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 -translate-y-1"
+           x-transition:enter-end="opacity-100 translate-y-0"
+           class="search-results-panel max-h-[calc(100vh-380px)] overflow-y-auto cart-scroll flex-1"
+           style="display: none;">
 
-        <!-- Search Results Dropdown -->
-        <div x-show="searchResults.length > 0" class="search-dropdown" style="display: none;">
-          <template x-for="product in searchResults" :key="product.id">
-            <div class="search-item" @click="selectSearchResult(product)">
-              <div>
-                <span class="text-sm font-medium text-white" x-text="product.name"></span>
-                <span class="text-xs text-slate-400 ml-2" x-text="product.unit ? `(${product.unit})` : ''"></span>
+        <!-- Results Header -->
+        <div class="flex items-center justify-between px-4 py-2 border-b border-white/[0.06]">
+          <span class="text-xs text-slate-400 font-medium">
+            <span x-text="searchResults.length"></span> results — <span class="kbd text-[9px]">↑↓</span> navigate, <span class="kbd text-[9px]">Enter</span> add
+          </span>
+          <button @click="searchResults = []; selectedSearchIndex = -1; smartInput = ''; focusSmartInput()"
+                  class="text-xs text-slate-500 hover:text-slate-300 transition-colors">
+            ✕ Clear
+          </button>
+        </div>
+
+        <!-- Result Rows -->
+        <template x-for="(product, idx) in searchResults" :key="product.id">
+          <div class="search-result-row"
+               :class="{ 'kb-selected': idx === selectedSearchIndex }"
+               @click="selectSearchResult(product)"
+               @mouseenter="selectedSearchIndex = idx">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
+                   :style="`background: ${product.quick_button_color || '#334155'};`">
+                <span class="text-white/80" x-text="product.name.substring(0, 2).toUpperCase()"></span>
               </div>
-              <span class="text-sm font-semibold text-emerald-400" x-text="formatPrice(product.selling_price)"></span>
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-white truncate sr-name" x-text="product.name"></p>
+                <div class="flex items-center gap-2 mt-0.5">
+                  <span class="text-[10px] text-slate-500 font-mono" x-text="product.barcode || 'No barcode'"></span>
+                  <span class="text-[10px] text-slate-600">•</span>
+                  <span class="text-[10px] uppercase tracking-wider"
+                        :class="product.stock_qty > product.low_stock_threshold ? 'text-slate-500' : 'text-amber-400'"
+                        x-text="`${product.stock_qty} ${product.unit} in stock`"></span>
+                </div>
+              </div>
             </div>
-          </template>
-        </div>
-      </div>
-
-      <!-- FAST GCASH SERVICES (Tablet-Friendly Row) -->
-      <div class="grid grid-cols-2 gap-3 mb-2 flex-shrink-0">
-        <button
-          @click="openGcashModal('GCASH_IN')"
-          class="flex items-center justify-center gap-3.5 py-4 rounded-xl font-extrabold text-sm text-white shadow-lg bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-blue-500/10 cursor-pointer transition-all duration-200 active:scale-[0.98] border border-blue-400/20"
-        >
-          <span class="text-2xl drop-shadow">📥</span>
-          <div class="text-left">
-            <div class="font-bold text-white tracking-tight">GCash Cash-In</div>
-            <div class="text-[10px] text-blue-200 font-medium">Add customer balance</div>
-          </div>
-        </button>
-        <button
-          @click="openGcashModal('GCASH_OUT')"
-          class="flex items-center justify-center gap-3.5 py-4 rounded-xl font-extrabold text-sm text-white shadow-lg bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 shadow-indigo-500/10 cursor-pointer transition-all duration-200 active:scale-[0.98] border border-indigo-400/20"
-        >
-          <span class="text-2xl drop-shadow">📤</span>
-          <div class="text-left">
-            <div class="font-bold text-white tracking-tight">GCash Cash-Out</div>
-            <div class="text-[10px] text-indigo-200 font-medium">Pay customer cash</div>
-          </div>
-        </button>
-      </div>
-
-      <!-- QUICK BUTTONS GRID -->
-      <div class="flex-1 overflow-y-auto pr-1" style="scrollbar-width: thin; scrollbar-color: rgba(100,116,139,0.3) transparent;">
-        <div class="grid grid-cols-3 gap-2.5">
-          <template x-for="item in quickItems" :key="item.id">
-            <button
-              class="quick-btn rounded-xl p-3 flex flex-col items-center justify-center text-center min-h-[100px] shadow-lg"
-              :style="`background: ${item.quick_button_color || '#334155'};`"
-              @click="addQuickItem(item)"
-            >
-              <span class="text-white font-bold text-sm leading-tight drop-shadow-sm" x-text="item.name"></span>
-              <span class="text-white/80 text-xs mt-1 font-medium" x-text="formatPrice(item.selling_price)"></span>
-              <span class="text-white/50 text-[10px] mt-0.5 uppercase tracking-wider" x-text="item.unit === 'kg' ? 'per kg' : item.unit === 'L' ? 'per L' : 'each'"></span>
-            </button>
-          </template>
-        </div>
-
-        <!-- Empty state if no quick items -->
-        <template x-if="quickItems.length === 0">
-          <div class="flex flex-col items-center justify-center h-40 text-slate-500">
-            <svg class="w-12 h-12 mb-2 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-            </svg>
-            <p class="text-sm">No quick buttons configured</p>
-            <p class="text-xs text-slate-600 mt-1">Add items in the Admin panel</p>
+            <div class="flex items-center gap-3 flex-shrink-0">
+              <span class="text-sm font-bold text-emerald-400" x-text="'₱' + Number(product.selling_price).toFixed(2)"></span>
+              <span class="text-[10px] text-slate-500 uppercase tracking-wider" x-text="product.unit === 'kg' ? '/kg' : product.unit === 'L' ? '/L' : '/pc'"></span>
+            </div>
           </div>
         </template>
       </div>
 
-      <!-- KEYBOARD SHORTCUTS HINT -->
-      <div class="flex items-center gap-4 text-[11px] text-slate-500 pt-1">
-        <span><span class="kbd">F1</span> Barcode</span>
+
+      <!-- ═══════════════════════════════════════════════════════
+           EMPTY STATE (when no search results shown)
+           ═══════════════════════════════════════════════════════ -->
+      <div x-show="searchResults.length === 0"
+           class="flex-1 flex flex-col justify-center items-center text-center select-none overflow-hidden"
+           style="min-height: 0;">
+
+        <!-- Scanning visual indicator -->
+        <div class="mb-4 opacity-20">
+          <svg class="w-20 h-20 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+              d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+          </svg>
+        </div>
+        <p class="text-slate-500 text-sm font-medium">Scan a barcode or type to search</p>
+        <p class="text-slate-600 text-xs mt-1">USB scanner input is captured automatically</p>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════
+           GCASH SERVICE BUTTONS (Compact Row)
+           ═══════════════════════════════════════════════════════ -->
+      <div class="grid grid-cols-2 gap-2 flex-shrink-0">
+        <button
+          @click="openGcashModal('GCASH_IN')"
+          class="flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs text-white shadow bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-blue-500/10 cursor-pointer transition-all duration-200 active:scale-[0.98] border border-blue-400/20"
+        >
+          <span>📥</span>
+          <span>GCash Cash-In</span>
+        </button>
+        <button
+          @click="openGcashModal('GCASH_OUT')"
+          class="flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs text-white shadow bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 shadow-indigo-500/10 cursor-pointer transition-all duration-200 active:scale-[0.98] border border-indigo-400/20"
+        >
+          <span>📤</span>
+          <span>GCash Cash-Out</span>
+        </button>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════
+           QUICK ITEMS STRIP (Collapsible — F3 toggle)
+           ═══════════════════════════════════════════════════════ -->
+      <div class="flex-shrink-0" x-show="quickItems.length > 0">
+        <!-- Toggle Header -->
+        <div class="quick-strip-toggle flex items-center gap-2 py-1 text-xs text-slate-500"
+             @click="toggleQuickStrip()">
+          <span class="chevron" :class="{ 'rotated': !quickStripOpen }">▼</span>
+          <span>Quick Items</span>
+          <span class="text-slate-600">(<span x-text="quickItems.length"></span>)</span>
+          <span class="kbd text-[9px] ml-1">F3</span>
+          <div class="flex-1 border-t border-slate-700/30"></div>
+        </div>
+
+        <!-- Scrollable Horizontal Strip -->
+        <div class="quick-strip pt-2 pb-1" :class="{ 'collapsed': !quickStripOpen }">
+          <div class="flex gap-2 overflow-x-auto quick-scroll pb-1">
+            <template x-for="item in quickItems" :key="item.id">
+              <button
+                class="quick-strip-btn rounded-lg px-3 py-2 flex flex-col items-center justify-center text-center min-w-[90px] shadow"
+                :style="`background: ${item.quick_button_color || '#334155'};`"
+                @click="addQuickItem(item)"
+              >
+                <span class="text-white font-bold text-xs leading-tight drop-shadow-sm truncate max-w-[80px]" x-text="item.name"></span>
+                <span class="text-white/70 text-[10px] mt-0.5 font-medium" x-text="'₱' + Number(item.selling_price).toFixed(2)"></span>
+              </button>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- KEYBOARD SHORTCUTS HINT BAR -->
+      <div class="flex items-center gap-3 text-[10px] text-slate-600 pt-0.5 flex-shrink-0 flex-wrap">
+        <span><span class="kbd">F1</span> Focus</span>
         <span><span class="kbd">F2</span> GCash</span>
+        <span><span class="kbd">F3</span> Quick</span>
         <span><span class="kbd">F5</span> Pay</span>
         <span><span class="kbd">F8</span> Z-Report</span>
-        <span><span class="kbd">ESC</span> Close</span>
+        <span><span class="kbd">Tab</span> Cart Nav</span>
+        <span><span class="kbd">↑↓</span> Navigate</span>
+        <span><span class="kbd">+−</span> Qty</span>
+        <span><span class="kbd">Del</span> Remove</span>
+        <span><span class="kbd">Esc</span> Back</span>
       </div>
     </section>
 
@@ -215,10 +275,17 @@
             <h2 class="text-base font-bold text-white">Cart</h2>
             <span class="badge bg-emerald-500/20 text-emerald-400" x-text="totalItems"></span>
           </div>
-          <button @click="clearCart()" class="text-xs text-slate-400 hover:text-red-400 transition-colors flex items-center gap-1"
-                  :class="{ 'opacity-30 pointer-events-none': cart.length === 0 }">
-            <span>🗑️</span> Clear
-          </button>
+          <div class="flex items-center gap-2">
+            <!-- Cart mode hint -->
+            <span class="text-[10px] text-slate-600"
+                  x-show="contextMode === 'cart'">
+              <span class="kbd text-[9px]">↑↓</span> nav
+            </span>
+            <button @click="clearCart()" class="text-xs text-slate-400 hover:text-red-400 transition-colors flex items-center gap-1"
+                    :class="{ 'opacity-30 pointer-events-none': cart.length === 0 }">
+              <span>🗑️</span> Clear
+            </button>
+          </div>
         </div>
 
         <!-- Cart Items (Scrollable) -->
@@ -229,22 +296,24 @@
             <div class="flex flex-col items-center justify-center h-full text-slate-500 select-none">
               <div class="empty-cart-icon mb-3">🛒</div>
               <p class="text-sm font-medium">Cart is empty</p>
-              <p class="text-xs text-slate-600 mt-1">Scan a barcode or tap a quick button</p>
+              <p class="text-xs text-slate-600 mt-1">Scan a barcode to start</p>
             </div>
           </template>
 
           <!-- Cart Items List -->
           <template x-for="(item, index) in cart" :key="item.product_id + '-' + index">
-            <div class="cart-item glass-light rounded-lg px-3 py-2.5 flex items-center gap-2.5 group">
+            <div class="cart-item glass-light rounded-lg px-3 py-2.5 flex items-center gap-2.5"
+                 :class="{ 'kb-selected': index === selectedCartIndex }"
+                 @click="selectedCartIndex = index; contextMode = 'cart'">
 
               <!-- Item Info -->
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-white truncate" x-text="item.product_name"></p>
+                <p class="text-sm font-semibold text-white truncate cart-item-name" x-text="item.product_name"></p>
                 <div class="flex items-center gap-2 mt-0.5">
                   <!-- Quantity (click to edit) -->
                   <template x-if="editingCartIndex !== index">
                     <span class="text-xs text-emerald-400 font-medium cursor-pointer hover:underline"
-                          @click="startEditingQty(index)"
+                          @click.stop="startEditingQty(index)"
                           x-text="formatQty(item)">
                     </span>
                   </template>
@@ -271,8 +340,8 @@
                 <p class="text-sm font-bold text-white" x-text="formatPrice(item.subtotal)"></p>
               </div>
 
-              <!-- Remove Button -->
-              <button class="remove-btn opacity-0 group-hover:opacity-100" @click="removeFromCart(index)" title="Remove item">
+              <!-- Remove Button (always visible — no hover dependency) -->
+              <button class="remove-btn" @click.stop="removeFromCart(index)" title="Remove item (Del)">
                 ✕
               </button>
             </div>
@@ -299,17 +368,28 @@
             </label>
           </div>
 
-          <!-- Amount Tendered -->
+          <!-- Amount Tendered + Denomination Buttons -->
           <div>
-            <label class="text-xs text-slate-400 mb-1 block">Amount Tendered</label>
+            <label class="text-xs text-slate-400 mb-1 block">Amount Tendered <span class="kbd text-[9px] ml-1">F5</span></label>
             <input
               type="number"
+              id="amount-tendered"
               x-model="amountTendered"
               placeholder="0.00"
               step="0.01"
               min="0"
+              @focus="paymentFocused = true; contextMode = 'pay'"
               class="w-full px-3 py-2.5 rounded-lg bg-slate-800/80 border border-slate-600/50 text-white text-lg font-semibold placeholder:text-slate-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-all duration-200"
             >
+            <!-- Quick Denomination Buttons -->
+            <div class="flex gap-1.5 mt-2">
+              <button class="denom-btn flex-1" @click="setDenomination(20)">₱20</button>
+              <button class="denom-btn flex-1" @click="setDenomination(50)">₱50</button>
+              <button class="denom-btn flex-1" @click="setDenomination(100)">₱100</button>
+              <button class="denom-btn flex-1" @click="setDenomination(200)">₱200</button>
+              <button class="denom-btn flex-1" @click="setDenomination(500)">₱500</button>
+              <button class="denom-btn flex-1" @click="setDenomination(1000)">₱1K</button>
+            </div>
           </div>
 
           <!-- Change Display -->
@@ -321,7 +401,7 @@
                   x-text="formatPrice(change)"></span>
           </div>
 
-          <!-- Payment Buttons -->
+          <!-- Payment Button -->
           <div class="w-full">
             <button
               @click="processPayment('CASH')"
@@ -335,7 +415,7 @@
                 <div class="spinner"></div>
               </template>
               <template x-if="!isProcessing">
-                <span>💵 Complete Sale (CASH / GCash)</span>
+                <span>💵 Complete Sale</span>
               </template>
               <span class="kbd text-[9px] ml-1">F5</span>
             </button>
@@ -351,11 +431,11 @@
             </button>
             <button @click="showGcashModal = true"
                     class="py-2 rounded-lg text-xs font-semibold text-slate-400 bg-slate-800/60 border border-slate-700/50 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30 transition-all duration-200">
-              📱 GCash (F2)
+              📱 GCash
             </button>
             <button @click="printZReport()"
                     class="py-2 rounded-lg text-xs font-semibold text-slate-400 bg-slate-800/60 border border-slate-700/50 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30 transition-all duration-200">
-              📊 Z-Report (F8)
+              📊 Z-Report
             </button>
           </div>
         </div>
@@ -416,7 +496,7 @@
       <div class="grid grid-cols-2 gap-3">
         <button @click="showWeightModal = false; selectedWeightItem = null; weightInput = '';"
                 class="py-3 rounded-xl font-semibold text-sm text-slate-300 bg-slate-700/60 hover:bg-slate-700 transition-all duration-200">
-          Cancel
+          Cancel <span class="kbd text-[9px] ml-1">Esc</span>
         </button>
         <button @click="addWeightedItem()"
                 class="py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 shadow-lg shadow-emerald-500/20 transition-all duration-200">
@@ -678,6 +758,7 @@
       </div>
     </div>
   </div>
+
 
 </body>
 </html>

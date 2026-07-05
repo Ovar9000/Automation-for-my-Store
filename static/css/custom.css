@@ -1,6 +1,6 @@
 /* ============================================================
-   Sari-Sari POS — Custom Stylesheet
-   Premium dark-theme POS interface with glassmorphism & animations
+   Sari-Sari POS — Custom Stylesheet (Keyboard-First Fork)
+   Premium dark-theme POS with barcode-first / keyboard-first UX
    ============================================================ */
 
 /* ── Base ────────────────────────────────────────────────────── */
@@ -65,34 +65,241 @@ html, body {
   animation: pulse 0.4s ease;
 }
 
-/* ── Quick Button ────────────────────────────────────────────── */
-.quick-btn {
+
+/* ═══════════════════════════════════════════════════════════════
+   KEYBOARD-FIRST — Hero Barcode Input
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Ready-to-Scan pulsing glow when focused */
+@keyframes scanPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25),
+                0 0 20px rgba(16, 185, 129, 0.08);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.45),
+                0 0 30px rgba(16, 185, 129, 0.15);
+  }
+}
+
+#smart-input {
   transition: all 0.2s ease;
+}
+
+#smart-input:focus {
+  border-color: #10b981;
+  outline: none;
+  animation: scanPulse 2s ease-in-out infinite;
+}
+
+/* Scan status indicator dot */
+.scan-status {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: scanStatusPulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes scanStatusPulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+.scan-status.inactive {
+  background: #475569;
+  animation: none;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   KEYBOARD-FIRST — Search Results (Keyboard Navigable)
+   ═══════════════════════════════════════════════════════════════ */
+
+.search-results-panel {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(30, 41, 59, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+
+.search-result-row {
+  padding: 0.625rem 1rem;
+  transition: background 0.12s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+
+.search-result-row:last-child {
+  border-bottom: none;
+}
+
+.search-result-row:hover {
+  background: rgba(16, 185, 129, 0.08);
+}
+
+/* Keyboard-selected highlight */
+.search-result-row.kb-selected {
+  background: rgba(16, 185, 129, 0.15);
+  border-left: 3px solid #10b981;
+  padding-left: calc(1rem - 3px);
+}
+
+.search-result-row.kb-selected .sr-name {
+  color: #6ee7b7;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   KEYBOARD-FIRST — Cart Item Keyboard Selection
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Keyboard-selected cart item highlight */
+.cart-item.kb-selected {
+  background: rgba(16, 185, 129, 0.12) !important;
+  border-left: 3px solid #10b981 !important;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.cart-item.kb-selected .cart-item-name {
+  color: #6ee7b7;
+}
+
+/* Remove button — always visible (keyboard-first: no hover dependency) */
+.remove-btn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: none;
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.remove-btn:hover,
+.cart-item.kb-selected .remove-btn {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+}
+
+.remove-btn:hover {
+  transform: scale(1.1);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   KEYBOARD-FIRST — Quick Items Collapsible Strip
+   ═══════════════════════════════════════════════════════════════ */
+
+.quick-strip {
+  overflow: hidden;
+  transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease;
+  max-height: 200px;
+  opacity: 1;
+}
+
+.quick-strip.collapsed {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.quick-strip-btn {
+  transition: all 0.15s ease;
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
   position: relative;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
-.quick-btn::after {
+.quick-strip-btn::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%);
+  background: linear-gradient(135deg, rgba(255,255,255,0.10) 0%, transparent 60%);
   pointer-events: none;
 }
 
-.quick-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+.quick-strip-btn:hover {
+  transform: scale(1.06);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
 }
 
-.quick-btn:active {
-  transform: scale(0.97);
+.quick-strip-btn:active {
+  transform: scale(0.96);
 }
 
-/* ── Barcode Input Glow ──────────────────────────────────────── */
+.quick-strip-toggle {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.quick-strip-toggle:hover {
+  color: #10b981;
+}
+
+.quick-strip-toggle .chevron {
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.quick-strip-toggle .chevron.rotated {
+  transform: rotate(180deg);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   DENOMINATION BUTTONS (Quick Tender)
+   ═══════════════════════════════════════════════════════════════ */
+
+.denom-btn {
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: 'Inter', monospace;
+  background: rgba(51, 65, 85, 0.6);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.denom-btn:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+}
+
+.denom-btn:active {
+  transform: scale(0.95);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   LEGACY / SHARED STYLES (preserved from original)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Barcode Input Glow (fallback for #barcode-input if still used) ── */
 #barcode-input:focus {
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
   border-color: #10b981;
@@ -264,7 +471,7 @@ html, body {
   color: #bfdbfe;
 }
 
-/* ── Search Dropdown ─────────────────────────────────────────── */
+/* ── Search Dropdown (legacy, kept for compatibility) ────────── */
 .search-dropdown {
   position: absolute;
   top: 100%;
@@ -452,17 +659,28 @@ button:focus-visible {
     animation: none !important;
   }
 
-  .quick-btn,
+  .quick-strip-btn,
   .toggle-slider,
   .toggle-slider::before,
   .gcash-tab,
   .tx-type-btn,
+  .search-result-row,
   .search-item {
     transition: none !important;
   }
 
-  .quick-btn:hover {
+  .quick-strip-btn:hover {
     transform: none;
+  }
+
+  #smart-input:focus {
+    animation: none;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
+  }
+
+  .scan-status {
+    animation: none;
+    opacity: 1;
   }
 
   .spinner {
@@ -475,29 +693,6 @@ button:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* ── Remove button ───────────────────────────────────────────── */
-.remove-btn {
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  border: none;
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.75rem;
-  flex-shrink: 0;
-}
-
-.remove-btn:hover {
-  background: rgba(239, 68, 68, 0.3);
-  color: #fca5a5;
-  transform: scale(1.1);
 }
 
 /* ── Empty Cart State ────────────────────────────────────────── */
@@ -526,4 +721,64 @@ button:focus-visible {
 
 .animate-fade {
   animation: fade 0.35s ease-out;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   KEYBOARD-FIRST — Context Mode Indicator
+   ═══════════════════════════════════════════════════════════════ */
+
+.context-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.context-indicator.mode-scan {
+  background: rgba(16, 185, 129, 0.12);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.context-indicator.mode-search {
+  background: rgba(59, 130, 246, 0.12);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.context-indicator.mode-cart {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fcd34d;
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.context-indicator.mode-pay {
+  background: rgba(168, 85, 247, 0.12);
+  color: #c4b5fd;
+  border: 1px solid rgba(168, 85, 247, 0.2);
+}
+
+/* ── Quick-access scrollbar ──────────────────────────────────── */
+.quick-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.quick-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.quick-scroll::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 2px;
+}
+
+.quick-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
 }
