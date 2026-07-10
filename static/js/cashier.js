@@ -17,7 +17,7 @@ function cashierApp() {
     selectedSearchIndex: -1,      // Keyboard nav: highlighted search result
     selectedCartIndex: -1,        // Keyboard nav: highlighted cart item
     quickItems: [],
-    quickStripOpen: false,        // Quick items strip collapsed by default
+    quickStripOpen: true,         // Quick items strip expanded by default
     amountTendered: '',
     printReceipt: false,
     showGcashModal: false,
