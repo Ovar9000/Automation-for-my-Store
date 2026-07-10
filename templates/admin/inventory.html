@@ -12,6 +12,119 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/custom.css">
   <script src="/static/js/inventory.js"></script>
+  <style>
+    /* ── Admin-specific overrides (light theme) ─────────────── */
+    html, body {
+      height: auto;
+      overflow: auto;
+      background: #f8fafc;
+      color: #1e293b;
+    }
+
+    /* ── Scan & Quick Price Animations ──────────────────────── */
+    @keyframes scanPulseLight {
+      0%, 100% {
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.20),
+                    0 0 15px rgba(59, 130, 246, 0.06);
+      }
+      50% {
+        box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.35),
+                    0 0 25px rgba(59, 130, 246, 0.12);
+      }
+    }
+
+    #scan-price-input:focus {
+      animation: scanPulseLight 2s ease-in-out infinite;
+      border-color: #3b82f6;
+      outline: none;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .quick-price-card {
+      animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes flashGreen {
+      0% { background-color: rgba(16, 185, 129, 0.15); }
+      100% { background-color: transparent; }
+    }
+
+    @keyframes flashAmber {
+      0% { background-color: rgba(245, 158, 11, 0.15); }
+      100% { background-color: transparent; }
+    }
+
+    .scan-flash-found {
+      animation: flashGreen 0.8s ease-out;
+    }
+
+    .scan-flash-new {
+      animation: flashAmber 0.8s ease-out;
+    }
+
+    /* ── Margin indicator colors ────────────────────────────── */
+    .margin-positive { color: #059669; }
+    .margin-negative { color: #dc2626; }
+    .margin-zero { color: #6b7280; }
+
+    /* ── Scan status dot ───────────────────────────────────── */
+    @keyframes dotPulse {
+      0%, 100% { opacity: 0.5; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+
+    .scan-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .scan-dot.ready {
+      background: #3b82f6;
+      animation: dotPulse 2s ease-in-out infinite;
+    }
+
+    .scan-dot.found {
+      background: #10b981;
+      animation: none;
+    }
+
+    .scan-dot.not-found {
+      background: #f59e0b;
+      animation: none;
+    }
+
+    .scan-dot.saving {
+      background: #8b5cf6;
+      animation: dotPulse 0.5s ease-in-out infinite;
+    }
+
+    /* ── Session badge ─────────────────────────────────────── */
+    .session-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: rgba(59, 130, 246, 0.1);
+      color: #3b82f6;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+  </style>
 </head>
 <body class="bg-slate-50 font-sans min-h-screen antialiased flex flex-col" x-data="inventoryApp()">
 
@@ -71,6 +184,248 @@
         Add New Product
       </button>
     </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         SCAN & QUICK PRICE — Hero Barcode Input
+         ═══════════════════════════════════════════════════════ -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-4"
+         :class="{
+           'scan-flash-found': scanStatus === 'found',
+           'scan-flash-new': scanStatus === 'not-found'
+         }">
+
+      <!-- Scan Input Row -->
+      <div class="flex items-center gap-4">
+        <!-- Scan Status Dot -->
+        <div class="scan-dot"
+             :class="{
+               'ready': scanStatus === 'idle',
+               'found': scanStatus === 'found',
+               'not-found': scanStatus === 'not-found',
+               'saving': scanStatus === 'saving'
+             }"></div>
+
+        <!-- Barcode Input -->
+        <div class="relative flex-grow">
+          <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+            </svg>
+          </div>
+          <input
+            type="text"
+            id="scan-price-input"
+            x-model="scanInput"
+            @keydown.enter.prevent="onScanEnter()"
+            placeholder="Scan barcode to quickly update price…"
+            autocomplete="off"
+            class="w-full pl-12 pr-24 py-3.5 rounded-xl bg-slate-50 border-2 border-slate-200 text-slate-800 text-lg font-semibold placeholder:text-slate-400 transition-all duration-200 focus:bg-white"
+          >
+          <div class="absolute inset-y-0 right-0 pr-3 flex items-center gap-2">
+            <span class="text-xs text-slate-400 hidden sm:inline">Enter to scan</span>
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">F1</span>
+          </div>
+        </div>
+
+        <!-- Session Counter -->
+        <div x-show="priceSessionCount > 0" class="session-badge flex-shrink-0" x-transition>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span x-text="priceSessionCount + ' priced'"></span>
+        </div>
+      </div>
+
+      <!-- Scan Notification -->
+      <div x-show="scanNotification"
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 -translate-y-1"
+           x-transition:enter-end="opacity-100 translate-y-0"
+           x-transition:leave="transition ease-in duration-150"
+           x-transition:leave-start="opacity-100"
+           x-transition:leave-end="opacity-0"
+           class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+           :class="{
+             'bg-emerald-50 text-emerald-700 border border-emerald-200': scanNotificationType === 'success',
+             'bg-red-50 text-red-700 border border-red-200': scanNotificationType === 'error',
+             'bg-amber-50 text-amber-700 border border-amber-200': scanNotificationType === 'info'
+           }"
+           style="display: none;">
+        <span x-show="scanNotificationType === 'success'" style="display: none;">✓</span>
+        <span x-show="scanNotificationType === 'error'" style="display: none;">⚠</span>
+        <span x-show="scanNotificationType === 'info'" style="display: none;">ℹ</span>
+        <span x-text="scanNotification"></span>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════
+           QUICK PRICE CARD (shown when product found)
+           ═══════════════════════════════════════════════════════ -->
+      <div x-show="quickPriceProduct"
+           x-transition:enter="transition ease-out duration-250"
+           x-transition:enter-start="opacity-0 -translate-y-2 scale-[0.98]"
+           x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+           x-transition:leave="transition ease-in duration-150"
+           x-transition:leave-start="opacity-100"
+           x-transition:leave-end="opacity-0 -translate-y-2"
+           class="quick-price-card bg-gradient-to-br from-slate-50 to-blue-50/50 rounded-xl border border-blue-200/60 p-5 space-y-4"
+           style="display: none;">
+
+        <!-- Product Header -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-blue-500/20"
+                 x-text="quickPriceProduct?.name?.substring(0, 2).toUpperCase()"></div>
+            <div>
+              <h3 class="font-bold text-slate-800 text-base" x-text="quickPriceProduct?.name"></h3>
+              <div class="flex items-center gap-2 mt-0.5">
+                <span class="text-xs font-mono text-slate-400" x-text="quickPriceProduct?.barcode"></span>
+                <span class="text-xs text-slate-300">•</span>
+                <span class="text-xs text-slate-500" x-text="(quickPriceProduct?.stock_qty || 0) + ' ' + (quickPriceProduct?.unit || 'pc') + ' in stock'"></span>
+                <span class="text-xs text-slate-300">•</span>
+                <span class="text-xs text-slate-500" x-text="quickPriceProduct?.category"></span>
+              </div>
+            </div>
+          </div>
+          <button @click="closeQuickPrice()"
+                  class="w-8 h-8 rounded-lg bg-slate-200/60 hover:bg-slate-300/80 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all duration-150"
+                  title="Close (Esc)">
+            ✕
+          </button>
+        </div>
+
+        <!-- Price Editor Row -->
+        <div class="grid grid-cols-12 gap-4 items-end">
+          <!-- Cost Price -->
+          <div class="col-span-4">
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Cost Price</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold text-sm">₱</span>
+              <input
+                type="number"
+                id="quick-cost-price"
+                x-model="quickCostPrice"
+                step="0.01"
+                min="0"
+                class="w-full pl-8 pr-2 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-800 text-base font-bold text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              >
+            </div>
+          </div>
+
+          <!-- Arrow -->
+          <div class="col-span-1 flex items-center justify-center pb-1">
+            <svg class="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+            </svg>
+          </div>
+
+          <!-- Selling Price -->
+          <div class="col-span-4">
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Selling Price</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold text-sm">₱</span>
+              <input
+                type="number"
+                id="quick-sell-price"
+                x-model="quickSellingPrice"
+                step="0.01"
+                min="0"
+                class="w-full pl-8 pr-2 py-2.5 rounded-lg bg-white border border-slate-200 text-slate-800 text-base font-bold text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              >
+            </div>
+          </div>
+
+          <!-- Margin Display -->
+          <div class="col-span-3 pb-0.5">
+            <div class="bg-white rounded-lg border border-slate-200 px-3 py-2 text-center">
+              <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Margin</div>
+              <div class="text-base font-extrabold"
+                   :class="{
+                     'margin-positive': quickMargin > 0,
+                     'margin-negative': quickMargin < 0,
+                     'margin-zero': quickMargin === 0
+                   }"
+                   x-text="'₱' + quickMargin.toFixed(2)"></div>
+              <div class="text-[10px] font-semibold"
+                   :class="{
+                     'text-emerald-500': quickMarginPercent > 0,
+                     'text-red-500': quickMarginPercent < 0,
+                     'text-slate-400': quickMarginPercent === 0
+                   }"
+                   x-text="quickMarginPercent.toFixed(1) + '%'"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-3 pt-1">
+          <button @click="saveQuickPrice()"
+                  :disabled="scanStatus === 'saving'"
+                  class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200
+                         bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400
+                         shadow-blue-500/15 hover:shadow-blue-500/25 hover:-translate-y-0.5 active:translate-y-0
+                         disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0">
+            <template x-if="scanStatus === 'saving'">
+              <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            </template>
+            <template x-if="scanStatus !== 'saving'">
+              <span>💾 Save & Next</span>
+            </template>
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-white/20 text-white/80">Enter</span>
+          </button>
+
+          <button @click="editFullDetails()"
+                  class="px-4 py-2.5 rounded-xl font-semibold text-sm text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200">
+            ✏️ Edit Full Details
+          </button>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════
+           NEW PRODUCT PROMPT (shown when barcode not found)
+           ═══════════════════════════════════════════════════════ -->
+      <div x-show="scanStatus === 'not-found'"
+           x-transition:enter="transition ease-out duration-250"
+           x-transition:enter-start="opacity-0 -translate-y-2"
+           x-transition:enter-end="opacity-100 translate-y-0"
+           x-transition:leave="transition ease-in duration-150"
+           x-transition:leave-start="opacity-100"
+           x-transition:leave-end="opacity-0"
+           class="quick-price-card bg-gradient-to-br from-amber-50 to-orange-50/50 rounded-xl border border-amber-200/60 p-5"
+           style="display: none;">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center text-white text-lg shadow-md shadow-amber-500/20">
+              📦
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-800 text-base">New Product Detected</h3>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Barcode <span class="font-mono font-semibold text-amber-600" x-text="scanInput"></span> is not in the database yet
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button @click="openAddWithBarcode()"
+                    class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200
+                           bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300
+                           shadow-amber-500/15 hover:-translate-y-0.5 active:translate-y-0">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+              </svg>
+              Register Product
+            </button>
+            <button @click="dismissScanPrompt()"
+                    class="w-8 h-8 rounded-lg bg-slate-200/60 hover:bg-slate-300/80 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all duration-150"
+                    title="Dismiss (Esc)">
+              ✕
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
     <!-- Filters and Toolbar -->
     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
