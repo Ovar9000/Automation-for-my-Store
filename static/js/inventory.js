@@ -2,7 +2,14 @@
  * Sari-Sari Store POS — Inventory Management Controller
  * ======================================================
  * Alpine JS controller handling Product CRUD operations, stock tracking,
- * alert highlighting, and quick-button selections.
+ * alert highlighting, quick-button selections, and Scan & Quick Price UX.
+ *
+ * Scan & Quick Price:
+ *   - Hero barcode input at the top of inventory page
+ *   - Scan a barcode → if product found → show Quick Price Card
+ *   - Quick Price Card lets admin update cost/selling price inline
+ *   - "Save & Next" saves + refocuses scanner for batch pricing
+ *   - Unknown barcode → opens Add Product modal with barcode pre-filled
  */
 
 function inventoryApp() {
@@ -17,7 +24,17 @@ function inventoryApp() {
     isEditing: false,
     editingId: null,
     deleteTarget: null,
-    
+
+    // ── Scan & Quick Price state ──────────────────────────────
+    scanInput: '',                  // Hero barcode scan input
+    quickPriceProduct: null,        // Product object for Quick Price Card
+    quickCostPrice: '',             // Editable cost price in Quick Price Card
+    quickSellingPrice: '',          // Editable selling price in Quick Price Card
+    scanStatus: 'idle',             // 'idle' | 'found' | 'not-found' | 'saving'
+    scanNotification: '',           // Feedback message below scan input
+    scanNotificationType: '',       // 'success' | 'error' | 'info'
+    priceSessionCount: 0,           // Number of items priced in this session
+
     // Form fields mapped directly to the schema
     form: {
       barcode: '',
@@ -39,7 +56,256 @@ function inventoryApp() {
         return;
       }
       await this.loadProducts();
+
+      // Auto-focus scan input on load
+      this.$nextTick(() => this.focusScanInput());
+
+      // Bind global keyboard shortcuts for scan redirect
+      document.addEventListener('keydown', (e) => this.handleScanKeyboard(e));
     },
+
+    // ═══════════════════════════════════════════════════════════
+    // SCAN & QUICK PRICE
+    // ═══════════════════════════════════════════════════════════
+
+    focusScanInput() {
+      const el = document.getElementById('scan-price-input');
+      if (el) {
+        el.focus();
+        el.select();
+      }
+    },
+
+    /**
+     * Handle barcode scan (Enter pressed in scan input).
+     * Digits + Enter → barcode lookup via API.
+     */
+    async onScanEnter() {
+      const code = this.scanInput.trim();
+      if (!code) return;
+
+      this.scanStatus = 'saving'; // Show spinner briefly
+      this.quickPriceProduct = null;
+      this.scanNotification = '';
+
+      try {
+        const res = await fetch(`/api/products/barcode/${encodeURIComponent(code)}`);
+
+        if (res.ok) {
+          // ── Product FOUND ─────────────────────────────────────
+          const product = await res.json();
+          this.quickPriceProduct = product;
+          this.quickCostPrice = Number(product.cost_price).toFixed(2);
+          this.quickSellingPrice = Number(product.selling_price).toFixed(2);
+          this.scanStatus = 'found';
+          this.showScanNotification(`Found: ${product.name}`, 'success');
+          this.scanInput = ''; // Clear for next scan
+
+          // Focus cost price input for immediate editing
+          this.$nextTick(() => {
+            const costEl = document.getElementById('quick-cost-price');
+            if (costEl) {
+              costEl.focus();
+              costEl.select();
+            }
+          });
+        } else {
+          // ── Product NOT FOUND ─────────────────────────────────
+          this.scanStatus = 'not-found';
+          this.showScanNotification(`No product with barcode "${code}" — Register it now?`, 'info');
+          // Keep scanInput so user can see the barcode
+        }
+      } catch (err) {
+        this.scanStatus = 'idle';
+        this.showScanNotification('Network error: ' + err.message, 'error');
+      }
+    },
+
+    /**
+     * Open Add Product modal with barcode pre-filled.
+     */
+    openAddWithBarcode() {
+      const barcode = this.scanInput.trim();
+      this.resetForm();
+      this.form.barcode = barcode;
+      this.isEditing = false;
+      this.editingId = null;
+      this.showModal = true;
+      this.scanStatus = 'idle';
+      this.scanInput = '';
+      this.scanNotification = '';
+    },
+
+    /**
+     * Dismiss the "not found" prompt and reset.
+     */
+    dismissScanPrompt() {
+      this.scanStatus = 'idle';
+      this.scanInput = '';
+      this.scanNotification = '';
+      this.focusScanInput();
+    },
+
+    /**
+     * Save quick price changes (cost + selling price only).
+     * Then refocus scan input for batch workflow.
+     */
+    async saveQuickPrice() {
+      if (!this.quickPriceProduct) return;
+
+      const cost = parseFloat(this.quickCostPrice);
+      const sell = parseFloat(this.quickSellingPrice);
+
+      if (isNaN(cost) || cost < 0) {
+        this.showScanNotification('Invalid cost price', 'error');
+        return;
+      }
+      if (isNaN(sell) || sell < 0) {
+        this.showScanNotification('Invalid selling price', 'error');
+        return;
+      }
+
+      this.scanStatus = 'saving';
+
+      try {
+        const res = await fetch(`/api/products/${this.quickPriceProduct.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cost_price: cost,
+            selling_price: sell
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || 'Failed to save');
+        }
+
+        this.priceSessionCount++;
+        this.showScanNotification(
+          `✓ ${this.quickPriceProduct.name} — ₱${sell.toFixed(2)} saved! (${this.priceSessionCount} item${this.priceSessionCount > 1 ? 's' : ''} this session)`,
+          'success'
+        );
+
+        // Close Quick Price Card, reload table, refocus scanner
+        this.quickPriceProduct = null;
+        this.scanStatus = 'idle';
+        await this.loadProducts();
+        this.$nextTick(() => this.focusScanInput());
+
+      } catch (err) {
+        this.scanStatus = 'found'; // Stay on the card so user can retry
+        this.showScanNotification('Save error: ' + err.message, 'error');
+      }
+    },
+
+    /**
+     * Close Quick Price Card without saving.
+     */
+    closeQuickPrice() {
+      this.quickPriceProduct = null;
+      this.scanStatus = 'idle';
+      this.scanNotification = '';
+      this.focusScanInput();
+    },
+
+    /**
+     * Open the full Edit modal from Quick Price Card.
+     */
+    editFullDetails() {
+      if (this.quickPriceProduct) {
+        this.openEditModal(this.quickPriceProduct);
+        this.quickPriceProduct = null;
+        this.scanStatus = 'idle';
+      }
+    },
+
+    // ── Computed: Margin ────────────────────────────────────────
+    get quickMargin() {
+      const cost = parseFloat(this.quickCostPrice) || 0;
+      const sell = parseFloat(this.quickSellingPrice) || 0;
+      return sell - cost;
+    },
+
+    get quickMarginPercent() {
+      const cost = parseFloat(this.quickCostPrice) || 0;
+      if (cost <= 0) return 0;
+      return ((this.quickMargin / cost) * 100);
+    },
+
+    // ── Scan Notification ──────────────────────────────────────
+    _scanNotifTimeout: null,
+    showScanNotification(msg, type = 'info') {
+      clearTimeout(this._scanNotifTimeout);
+      this.scanNotification = msg;
+      this.scanNotificationType = type;
+      // Auto-hide after 6s (longer for batch workflow so user can read)
+      this._scanNotifTimeout = setTimeout(() => {
+        this.scanNotification = '';
+      }, 6000);
+    },
+
+    // ── Keyboard redirect: digits typed while unfocused → scan input ──
+    handleScanKeyboard(event) {
+      const tag = event.target.tagName;
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+      // F1 → focus scan input
+      if (event.key === 'F1') {
+        event.preventDefault();
+        this.focusScanInput();
+        return;
+      }
+
+      // Escape → close Quick Price Card or dismiss prompt
+      if (event.key === 'Escape') {
+        if (this.quickPriceProduct) {
+          event.preventDefault();
+          this.closeQuickPrice();
+          return;
+        }
+        if (this.scanStatus === 'not-found') {
+          event.preventDefault();
+          this.dismissScanPrompt();
+          return;
+        }
+      }
+
+      // Auto-redirect digits to scan input when not in any input field
+      if (!isInput && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        if (/^\d$/.test(event.key)) {
+          this.focusScanInput();
+          // Don't prevent default — let the digit type into the now-focused input
+        }
+      }
+
+      // Enter in Quick Price Card cost/sell inputs → save
+      if (event.key === 'Enter' && this.quickPriceProduct) {
+        const targetId = event.target.id;
+        if (targetId === 'quick-cost-price' || targetId === 'quick-sell-price') {
+          event.preventDefault();
+          this.saveQuickPrice();
+        }
+      }
+
+      // Tab between cost and sell in Quick Price Card
+      if (event.key === 'Tab' && !event.shiftKey && this.quickPriceProduct) {
+        const targetId = event.target.id;
+        if (targetId === 'quick-cost-price') {
+          event.preventDefault();
+          const sellEl = document.getElementById('quick-sell-price');
+          if (sellEl) {
+            sellEl.focus();
+            sellEl.select();
+          }
+        }
+      }
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // ORIGINAL INVENTORY CRUD (unchanged)
+    // ═══════════════════════════════════════════════════════════
 
     async loadProducts() {
       try {
