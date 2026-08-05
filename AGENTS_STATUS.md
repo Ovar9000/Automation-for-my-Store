@@ -15,6 +15,7 @@
 - [x] Receipt formatting (32-char width text helper for 58mm thermal printers)
 - [x] localStorage cart recovery (`pos_cart` key)
 - [x] **Keyboard-First Cashier Fork** (2026-07-05) — Full UI redesign for barcode-first / keyboard-driven workflow
+- [x] **Scan & Quick Price UX** (2026-07-10) — Admin inventory barcode scan → inline price editor with batch workflow
 
 ## Understanding of the Features
 
@@ -43,6 +44,14 @@
 - **Always-Visible Remove Buttons**: Cart item remove buttons are always visible (no hover-only dependency), critical for keyboard-first UX.
 - **Auto-Redirect Typing**: Any printable character typed while not focused on an input automatically redirects to the smart input.
 
+### 5. Scan & Quick Price UX (Admin Inventory)
+- **Hero Barcode Input**: A prominent scan input at the top of the admin inventory page. Barcode scanners (USB) emit digit keystrokes + Enter, which the input captures automatically. F1 focuses the input; stray digit keystrokes while unfocused auto-redirect to it.
+- **Quick Price Card**: When a known barcode is scanned, an inline card slides in showing the product name, barcode, stock, category, and editable Cost/Selling Price fields with a live Margin display (₱ and %). Tab moves between cost → sell fields; Enter saves.
+- **Save & Next Workflow**: "Save & Next" updates only cost_price and selling_price via `PUT /api/products/{id}`, increments a session counter badge, then auto-refocuses the scan input for rapid batch pricing.
+- **New Product Detected Prompt**: When an unknown barcode is scanned, an amber prompt shows the barcode and offers "Register Product" which opens the Add Product modal with barcode pre-filled.
+- **Escape Cascade**: Escape closes Quick Price Card → dismisses New Product prompt → returns to idle scan state.
+- **No Backend Changes**: Reuses existing `GET /api/products/barcode/{barcode}`, `PUT /api/products/{id}`, and `POST /api/products` endpoints.
+
 ## Agent Learnings & Troubleshooting
 - **Subagent Rate Limits**: During development, parallel subagents hit the `RESOURCE_EXHAUSTED 429` rate limit. In these situations, the parent agent must gracefully take over and complete code creation sequentially.
 - **Route Ordering in FastAPI**: Defined paths like `/products/low-stock` and `/products/barcode/{barcode}` *before* parameterized paths like `/products/{id}`. Otherwise, FastAPI interprets paths like "low-stock" as an item ID, leading to casting errors.
@@ -50,4 +59,6 @@
 - **Git Workspace Isolation & DB Exclusion**: For nested projects, initializing a dedicated git repository prevents staging user home directory files. Additionally, adding `data/store.db` to `.gitignore` ensures that the active/local database state is excluded from commits.
 - **Alpine.js `template x-if` + SVG = cloneNode Error**: Alpine.js's `<template x-if>` directive cannot wrap SVG elements because SVG uses a different DOM namespace and `cloneNode()` fails to properly recreate SVG nodes. **Solution**: Use `x-show` on a `<span>` wrapper around the SVG instead. This only toggles `display` rather than cloning DOM nodes, avoiding the error entirely.
 - **Keyboard-First UX Pattern**: When designing for keyboard-driven workflows, avoid hover-only UI states (e.g., show-on-hover remove buttons). Use context modes and visual indicators to communicate which keyboard area is active. Auto-redirect stray keystrokes to the primary input field so USB barcode scanners work even when focus is lost.
+- **Admin Light-Theme CSS Override**: The admin pages use a white/light theme while the cashier uses dark. When sharing `custom.css`, the admin templates need `<style>` overrides for `html, body` to reset `overflow`, `background`, and `color` from the dark defaults. Animations (scan pulse, slide-in) should use blue tones (not green) to visually distinguish admin from cashier context.
+- **Inline Price Editor UX > Modal for Batch Workflows**: For repetitive tasks like pricing many items, an inline card with focused fields + auto-refocus-after-save is far more efficient than opening/closing modals. The "Save & Next" pattern eliminates clicks and keeps the user in flow.
 

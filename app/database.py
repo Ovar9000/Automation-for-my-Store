@@ -36,6 +36,11 @@ CREATE TABLE IF NOT EXISTS products (
     is_quick_item       INTEGER NOT NULL DEFAULT 0,         -- 1 = show as quick button on cashier
     quick_button_color  TEXT DEFAULT '#10b981',             -- Hex color for the quick button
     category            TEXT DEFAULT 'General',             -- Category for grouping
+    half_dozen_price    REAL,                               -- Optional bundle price for 6pcs
+    dozen_price         REAL,                               -- Optional bundle price for 12pcs
+    pcs_per_pack        INTEGER DEFAULT 1,                  -- Pack/tie size (e.g. 10pcs per tie, 8pcs per pack)
+    bulk_cost_price     REAL,                               -- Total cost paid for 1 bulk pack/tie
+    full_pack_price     REAL,                               -- Selling price for 1 full bulk pack/tie
     created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -101,6 +106,32 @@ CREATE TABLE IF NOT EXISTS admin_settings (
 );
 
 -- =============================================================
+-- CUSTOMER DEBTS & UTANG SYSTEM
+-- =============================================================
+CREATE TABLE IF NOT EXISTS customer_debts (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_name       TEXT NOT NULL UNIQUE,
+    total_debt          REAL NOT NULL DEFAULT 0,
+    phone_number        TEXT,
+    notes               TEXT,
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS debt_transactions (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    debt_id             INTEGER NOT NULL,
+    sale_id             INTEGER,
+    type                TEXT NOT NULL,                      -- 'CHARGE' or 'PAYMENT'
+    amount              REAL NOT NULL,
+    balance_after       REAL NOT NULL,
+    notes               TEXT,
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (debt_id) REFERENCES customer_debts(id) ON DELETE CASCADE,
+    FOREIGN KEY (sale_id) REFERENCES transactions(id) ON DELETE SET NULL
+);
+
+-- =============================================================
 -- INDEXES for fast lookups
 -- =============================================================
 CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
@@ -110,6 +141,8 @@ CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(created_at);
 CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(transaction_type);
 CREATE INDEX IF NOT EXISTS idx_transaction_items_txn ON transaction_items(transaction_id);
 CREATE INDEX IF NOT EXISTS idx_gcash_txn ON gcash_transactions(transaction_id);
+CREATE INDEX IF NOT EXISTS idx_customer_debts_name ON customer_debts(customer_name);
+CREATE INDEX IF NOT EXISTS idx_debt_txns_debt_id ON debt_transactions(debt_id);
 """
 
 # ─── Default settings to insert on first run ─────────────────────────
@@ -151,6 +184,28 @@ async def init_db():
 
         # ── Create all tables ──
         await db.executescript(SCHEMA_SQL)
+
+        # ── Column Migrations ──
+        try:
+            await db.execute("ALTER TABLE products ADD COLUMN half_dozen_price REAL")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE products ADD COLUMN dozen_price REAL")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE products ADD COLUMN pcs_per_pack INTEGER DEFAULT 1")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE products ADD COLUMN bulk_cost_price REAL")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE products ADD COLUMN full_pack_price REAL")
+        except Exception:
+            pass
 
         # ── Insert default settings if not present ──
         for key, value in DEFAULT_SETTINGS.items():

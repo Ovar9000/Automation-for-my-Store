@@ -46,7 +46,18 @@ function inventoryApp() {
       unit: 'pc',
       category: 'General',
       is_quick_item: false,
-      quick_button_color: '#10b981'
+      quick_button_color: '#10b981',
+      pcs_per_pack: 1,
+      bulk_cost_price: '',
+      full_pack_price: ''
+    },
+
+    calculateBulkCost() {
+      const pcs = parseInt(this.form.pcs_per_pack) || 1;
+      const bulkCost = parseFloat(this.form.bulk_cost_price) || 0;
+      if (pcs > 0 && bulkCost > 0) {
+        this.form.cost_price = Math.round((bulkCost / pcs) * 100) / 100;
+      }
     },
 
     async init() {
@@ -134,6 +145,13 @@ function inventoryApp() {
       this.scanStatus = 'idle';
       this.scanInput = '';
       this.scanNotification = '';
+      this.$nextTick(() => {
+        const el = document.getElementById('form-name');
+        if (el) {
+          el.focus();
+          el.select();
+        }
+      });
     },
 
     /**
@@ -280,6 +298,13 @@ function inventoryApp() {
         }
       }
 
+      // Enter when product not found → open Register Product modal
+      if (event.key === 'Enter' && this.scanStatus === 'not-found' && !this.showModal) {
+        event.preventDefault();
+        this.openAddWithBarcode();
+        return;
+      }
+
       // Enter in Quick Price Card cost/sell inputs → save
       if (event.key === 'Enter' && this.quickPriceProduct) {
         const targetId = event.target.id;
@@ -352,19 +377,31 @@ function inventoryApp() {
     },
 
     async saveProduct() {
+      if (!this.form.name || !this.form.name.trim()) {
+        alert('Please enter a Product Name before saving.');
+        return;
+      }
+      const sellPrice = parseFloat(this.form.selling_price) || 0;
+      if (sellPrice <= 0) {
+        alert('Please enter a valid Selling Price (> ₱0.00) before saving.');
+        return;
+      }
+
       const url = this.isEditing ? `/api/products/${this.editingId}` : '/api/products';
       const method = this.isEditing ? 'PUT' : 'POST';
 
       try {
-        // Map form values to JSON request body.
-        // Ensure values are numbers before transmitting.
         const body = {
           ...this.form,
+          name: this.form.name.trim(),
           cost_price: parseFloat(this.form.cost_price) || 0,
-          selling_price: parseFloat(this.form.selling_price) || 0,
+          selling_price: sellPrice,
           stock_qty: parseFloat(this.form.stock_qty) || 0,
           low_stock_threshold: parseFloat(this.form.low_stock_threshold) || 0,
-          barcode: this.form.barcode.trim() || null
+          barcode: this.form.barcode && this.form.barcode.trim() ? this.form.barcode.trim() : null,
+          pcs_per_pack: parseInt(this.form.pcs_per_pack) || 1,
+          bulk_cost_price: this.form.bulk_cost_price !== '' && this.form.bulk_cost_price !== null ? parseFloat(this.form.bulk_cost_price) : null,
+          full_pack_price: this.form.full_pack_price !== '' && this.form.full_pack_price !== null ? parseFloat(this.form.full_pack_price) : null
         };
 
         const res = await fetch(url, {
@@ -381,6 +418,7 @@ function inventoryApp() {
 
         this.showModal = false;
         await this.loadProducts();
+        this.$nextTick(() => this.focusScanInput());
       } catch (err) {
         console.error('Save product error:', err);
         alert('Server validation or connection error.');
@@ -422,7 +460,10 @@ function inventoryApp() {
         unit: 'pc',
         category: 'General',
         is_quick_item: false,
-        quick_button_color: '#10b981'
+        quick_button_color: '#10b981',
+        pcs_per_pack: 1,
+        bulk_cost_price: '',
+        full_pack_price: ''
       };
     },
 

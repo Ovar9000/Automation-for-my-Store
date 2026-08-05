@@ -21,6 +21,12 @@ function cashierApp() {
     amountTendered: '',
     printReceipt: false,
     showGcashModal: false,
+    showPaymentModal: false,       // Big Payment Checkout Modal
+    paymentTab: 'cash',            // 'cash' | 'gcash'
+    showSuccessModal: false,       // Post-sale change display modal
+    lastSaleDetails: { total: 0, tendered: 0, change: 0, itemsCount: 0 },
+    lastScannedProduct: null,     // Most recently scanned item object
+    showBundleBanner: false,      // Show Multi-Pack conversion banner
     showWeightModal: false,
     weightInput: '',
     selectedWeightItem: null,
@@ -28,8 +34,18 @@ function cashierApp() {
     notification: { show: false, message: '', type: 'success' },
     editingCartIndex: -1,
     editingQty: '',
-    paymentFocused: false,        // F5 two-press flow: true when tendered input focused
+    paymentFocused: false,        // F5 flow
     contextMode: 'scan',          // 'scan' | 'search' | 'cart' | 'pay'
+
+    // Customer Debt (Utang) State
+    showDebtLedgerModal: false,
+    debtCustomers: [],
+    debtSearchQuery: '',
+    debtCustomerName: '',
+    debtPaidNow: '',
+    showRepaymentModal: false,
+    selectedDebtCustomer: null,
+    repaymentAmount: '',
 
     // ── Computed ──────────────────────────────────────────────
     get total() {
@@ -112,7 +128,12 @@ function cashierApp() {
      */
     async onSmartEnter() {
       const val = this.smartInput.trim();
-      if (!val) return;
+      if (!val) {
+        if (this.cart.length > 0) {
+          this.initiatePayment();
+        }
+        return;
+      }
 
       // If search results are showing and we have a selection
       if (this.searchResults.length > 0 && this.selectedSearchIndex >= 0) {
@@ -140,6 +161,7 @@ function cashierApp() {
     },
 
     // ── Cart Operations ──────────────────────────────────────
+    _bundleBannerTimeout: null,
     addToCart(product, quantity = 1) {
       const existing = this.cart.find(item => item.product_id === product.id);
       if (existing) {
@@ -154,8 +176,19 @@ function cashierApp() {
           unit_price: product.selling_price,
           cost_price: product.cost_price,
           subtotal: Math.round(quantity * product.selling_price * 100) / 100,
+          pcs_per_pack: product.pcs_per_pack || 12,
+          full_pack_price: product.full_pack_price || null,
+          pack_label: null
         });
       }
+
+      this.lastScannedProduct = product;
+      this.showBundleBanner = true;
+      clearTimeout(this._bundleBannerTimeout);
+      this._bundleBannerTimeout = setTimeout(() => {
+        this.showBundleBanner = false;
+      }, 6000);
+
       this.saveCart();
       this.showNotification(`${product.name} added`);
       this.focusSmartInput();
@@ -169,6 +202,41 @@ function cashierApp() {
           el.classList.add('total-pulse');
         }
       });
+    },
+
+    convertLastItemToPack(packType) {
+      if (!this.lastScannedProduct || this.cart.length === 0) return;
+
+      const item = this.cart.find(i => i.product_id === this.lastScannedProduct.id);
+      if (!item) return;
+
+      const packSize = this.lastScannedProduct.pcs_per_pack || 12;
+      const halfQty = Math.max(1, Math.round(packSize / 2));
+      const fullQty = packSize;
+
+      if (packType === 'half') {
+        item.quantity = halfQty;
+        if (item.full_pack_price) {
+          item.subtotal = Math.round((item.full_pack_price / 2) * 100) / 100;
+        } else {
+          item.subtotal = Math.round(halfQty * item.unit_price * 100) / 100;
+        }
+        item.pack_label = `Half-Pack (${halfQty}pcs)`;
+        this.showNotification(`✓ ${item.product_name} converted to Half-Pack (${halfQty}pcs) — ₱${item.subtotal.toFixed(2)}`, 'success');
+      } else if (packType === 'dozen' || packType === 'full') {
+        item.quantity = fullQty;
+        if (item.full_pack_price) {
+          item.subtotal = Math.round(item.full_pack_price * 100) / 100;
+        } else {
+          item.subtotal = Math.round(fullQty * item.unit_price * 100) / 100;
+        }
+        item.pack_label = `Full-Pack (${fullQty}pcs)`;
+        this.showNotification(`✓ ${item.product_name} converted to Full-Pack (${fullQty}pcs) — ₱${item.subtotal.toFixed(2)}`, 'success');
+      }
+
+      this.showBundleBanner = false;
+      this.saveCart();
+      this.focusSmartInput();
     },
 
     removeFromCart(index) {
@@ -347,21 +415,20 @@ function cashierApp() {
         return;
       }
 
-      if (!this.paymentFocused) {
-        // First press: focus the amount tendered input
-        this.paymentFocused = true;
-        this.contextMode = 'pay';
-        this.$nextTick(() => {
-          const el = document.getElementById('amount-tendered');
-          if (el) {
-            el.focus();
-            el.select();
-          }
-        });
-      } else {
-        // Second press: complete the sale
-        this.processPayment('CASH');
+      this.showPaymentModal = true;
+      this.paymentTab = 'cash';
+      this.contextMode = 'pay';
+      if (!this.amountTendered) {
+        this.amountTendered = String(this.total);
       }
+
+      this.$nextTick(() => {
+        const el = document.getElementById('big-amount-tendered');
+        if (el) {
+          el.focus();
+          el.select();
+        }
+      });
     },
 
     async processPayment(method = 'CASH') {
@@ -370,10 +437,13 @@ function cashierApp() {
         return;
       }
 
+      const currentTotal = this.total;
+      const currentItems = this.totalItems;
+      const tenderedVal = parseFloat(this.amountTendered) || currentTotal;
+
       if (method === 'CASH') {
-        const tendered = parseFloat(this.amountTendered) || 0;
-        if (tendered < this.total) {
-          this.showNotification('Insufficient amount!', 'error');
+        if (tenderedVal < currentTotal) {
+          this.showNotification('Insufficient amount tendered!', 'error');
           return;
         }
       }
@@ -386,9 +456,9 @@ function cashierApp() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             items: this.cart,
-            total_amount: this.total,
+            total_amount: currentTotal,
             payment_method: method,
-            amount_tendered: parseFloat(this.amountTendered) || this.total,
+            amount_tendered: tenderedVal,
             print_receipt: this.printReceipt,
           }),
         });
@@ -399,8 +469,19 @@ function cashierApp() {
         }
 
         const result = await res.json();
-        const changeAmount = result.change?.toFixed(2) || '0.00';
-        this.showNotification(`Sale complete! Change: ₱${changeAmount}`, 'success');
+        const changeAmount = result.change !== undefined ? result.change : Math.max(0, tenderedVal - currentTotal);
+
+        // Store last sale details for the Big Success Modal
+        this.lastSaleDetails = {
+          total: currentTotal,
+          tendered: tenderedVal,
+          change: changeAmount,
+          itemsCount: currentItems,
+          method: method
+        };
+
+        this.showPaymentModal = false;
+        this.showSuccessModal = true;
 
         // Clear cart
         this.cart = [];
@@ -408,11 +489,17 @@ function cashierApp() {
         this.selectedCartIndex = -1;
         this.paymentFocused = false;
         this.saveCart();
+
+        this.showNotification(`Sale complete! Change: ₱${changeAmount.toFixed(2)}`, 'success');
       } catch (err) {
         this.showNotification('Error: ' + err.message, 'error');
       }
 
       this.isProcessing = false;
+    },
+
+    closeSuccessModal() {
+      this.showSuccessModal = false;
       this.contextMode = 'scan';
       this.focusSmartInput();
     },
@@ -442,6 +529,143 @@ function cashierApp() {
       }
     },
 
+    // ── Customer Debt (Utang) Operations ──────────────────────
+    async openDebtLedgerModal() {
+      this.showDebtLedgerModal = true;
+      await this.loadDebtList();
+    },
+
+    async loadDebtList() {
+      try {
+        const query = this.debtSearchQuery.trim() ? `?search=${encodeURIComponent(this.debtSearchQuery.trim())}` : '';
+        const res = await fetch(`/api/debts${query}`);
+        if (res.ok) {
+          this.debtCustomers = await res.json();
+        }
+      } catch (err) {
+        console.error('Load debt list error:', err);
+      }
+    },
+
+    focusDebtCustomerInput() {
+      this.$nextTick(() => {
+        const el = document.getElementById('debt-customer-name');
+        if (el) { el.focus(); el.select(); }
+      });
+    },
+
+    async processUtangSale() {
+      if (!this.debtCustomerName.trim()) {
+        alert('Please enter a customer name for the debt record.');
+        return;
+      }
+
+      if (this.cart.length === 0) return;
+      this.isProcessing = true;
+
+      try {
+        // 1. Process store checkout
+        const payload = {
+          items: this.cart.map(i => ({
+            product_id: i.product_id,
+            quantity: i.quantity,
+            unit_price: i.unit_price,
+            cost_price: i.cost_price,
+            subtotal: i.subtotal
+          })),
+          total_amount: this.total,
+          payment_type: 'UTANG',
+          amount_tendered: parseFloat(this.debtPaidNow) || 0,
+          change_amount: 0,
+          notes: `Utang sale for ${this.debtCustomerName.trim()}`
+        };
+
+        const res = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.detail || 'Checkout failed');
+        }
+
+        const saleResult = await res.json();
+
+        // 2. Charge balance to customer debt account
+        const amountPaidNow = parseFloat(this.debtPaidNow) || 0;
+        const amountCharged = Math.max(0, this.total - amountPaidNow);
+
+        if (amountCharged > 0) {
+          await fetch('/api/debts/charge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              customer_name: this.debtCustomerName.trim(),
+              sale_id: saleResult.id,
+              amount_charged: amountCharged,
+              amount_paid_now: amountPaidNow,
+              notes: `Store Sale #${saleResult.receipt_number}`
+            })
+          });
+        }
+
+        this.lastSaleDetails = {
+          total: this.total,
+          tendered: amountPaidNow,
+          change: 0,
+          itemsCount: this.totalItems
+        };
+
+        this.showPaymentModal = false;
+        this.showSuccessModal = true;
+        this.clearCart();
+        this.debtCustomerName = '';
+        this.debtPaidNow = '';
+        await this.loadDebtList();
+      } catch (err) {
+        console.error('Utang sale error:', err);
+        alert(err.message || 'Utang transaction failed.');
+      } finally {
+        this.isProcessing = false;
+      }
+    },
+
+    openRepaymentModal(customer) {
+      this.selectedDebtCustomer = customer;
+      this.repaymentAmount = '';
+      this.showRepaymentModal = true;
+    },
+
+    async processDebtRepayment() {
+      if (!this.selectedDebtCustomer || !this.repaymentAmount || this.repaymentAmount <= 0) return;
+
+      this.isProcessing = true;
+      try {
+        const res = await fetch(`/api/debts/${this.selectedDebtCustomer.id}/pay`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            payment_amount: parseFloat(this.repaymentAmount),
+            notes: 'Cash debt repayment received at POS'
+          })
+        });
+
+        if (!res.ok) throw new Error('Payment failed');
+
+        const result = await res.json();
+        this.showNotification(result.message, 'success');
+        this.showRepaymentModal = false;
+        await this.loadDebtList();
+      } catch (err) {
+        console.error('Repayment error:', err);
+        alert('Debt repayment failed.');
+      } finally {
+        this.isProcessing = false;
+      }
+    },
+
     openGcashModal(type) {
       this.showGcashModal = true;
       this.$nextTick(() => {
@@ -458,31 +682,125 @@ function cashierApp() {
       const isSmartInput = event.target.id === 'smart-input';
       const isTenderedInput = event.target.id === 'amount-tendered';
 
+      // ── Modal specific key handlers ───────────────────────
+      if (this.showSuccessModal) {
+        if (event.key === 'Enter' || event.key === 'Escape' || event.key === ' ') {
+          event.preventDefault();
+          this.closeSuccessModal();
+          return;
+        }
+      }
+
+      // ── Multi-Pack Hotkey Conversion ([1] for 6pcs, [2] for 12pcs) ──
+      if (this.showBundleBanner && !this.showPaymentModal && !this.showSuccessModal && !this.showGcashModal && !this.showWeightModal) {
+        if (event.key === '1' && (isSmartInput ? this.smartInput === '' : !isInput)) {
+          event.preventDefault();
+          this.convertLastItemToPack('half');
+          return;
+        }
+        if (event.key === '2' && (isSmartInput ? this.smartInput === '' : !isInput)) {
+          event.preventDefault();
+          this.convertLastItemToPack('dozen');
+          return;
+        }
+      }
+
+      if (this.showPaymentModal) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          this.showPaymentModal = false;
+          this.contextMode = 'scan';
+          this.focusSmartInput();
+          return;
+        }
+        if (event.key === 'F1') {
+          event.preventDefault();
+          this.paymentTab = 'cash';
+          this.$nextTick(() => {
+            const el = document.getElementById('big-amount-tendered');
+            if (el) { el.focus(); el.select(); }
+          });
+          return;
+        }
+        if (event.key === 'F2') {
+          event.preventDefault();
+          this.paymentTab = 'gcash';
+          return;
+        }
+        if (event.key === 'F4') {
+          event.preventDefault();
+          this.paymentTab = 'utang';
+          this.focusDebtCustomerInput();
+          return;
+        }
+        if (event.key === 'Enter') {
+          const targetId = event.target.id;
+          if (this.paymentTab === 'utang') {
+            event.preventDefault();
+            this.processUtangSale();
+            return;
+          } else if (targetId === 'big-amount-tendered' || !isInput) {
+            event.preventDefault();
+            this.processPayment(this.paymentTab === 'cash' ? 'CASH' : 'GCASH');
+            return;
+          }
+        }
+      }
+
       // ── F-Keys always work ──────────────────────────────────
       switch (event.key) {
         case 'F1':
+          if (!this.showPaymentModal) {
+            event.preventDefault();
+            this.focusSmartInput();
+            return;
+          }
+          break;
+
+        case 'F2':
+          if (!this.showPaymentModal) {
+            event.preventDefault();
+            this.openGcashModal('GCASH_IN');
+            return;
+          }
+          break;
+
+        case 'F3':
           event.preventDefault();
           this.focusSmartInput();
           return;
 
-        case 'F2':
+        case 'F4':
           event.preventDefault();
-          this.openGcashModal('GCASH_IN');
-          return;
-
-        case 'F3':
-          event.preventDefault();
-          this.toggleQuickStrip();
+          if (this.cart.length > 0) {
+            this.initiatePayment();
+            this.paymentTab = 'utang';
+            this.focusDebtCustomerInput();
+          }
           return;
 
         case 'F5':
           event.preventDefault();
-          this.initiatePayment();
+          if (!this.showPaymentModal) {
+            this.initiatePayment();
+          } else {
+            this.processPayment(this.paymentTab === 'cash' ? 'CASH' : 'GCASH');
+          }
+          return;
+
+        case 'F7':
+          event.preventDefault();
+          this.openDebtLedgerModal();
           return;
 
         case 'F8':
           event.preventDefault();
           this.printZReport();
+          return;
+
+        case 'F9':
+          event.preventDefault();
+          window.location.href = '/admin/inventory';
           return;
 
         case 'Escape':
@@ -492,15 +810,14 @@ function cashierApp() {
             this.showGcashModal = false;
           } else if (this.showWeightModal) {
             this.showWeightModal = false;
+          } else if (this.showPaymentModal) {
+            this.showPaymentModal = false;
+            this.focusSmartInput();
           } else if (this.searchResults.length > 0) {
             this.searchResults = [];
             this.selectedSearchIndex = -1;
             this.smartInput = '';
             this.contextMode = 'scan';
-          } else if (this.paymentFocused) {
-            this.paymentFocused = false;
-            this.contextMode = 'scan';
-            this.focusSmartInput();
           } else if (this.editingCartIndex >= 0) {
             this.editingCartIndex = -1;
           } else if (this.selectedCartIndex >= 0) {

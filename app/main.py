@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse
 from pathlib import Path
 
 from app.database import init_db
-from app.routers import cashier, gcash, inventory, reports, printer
+from app.routers import cashier, gcash, inventory, reports, printer, debt
 
 
 # ─── Paths ───────────────────────────────────────────────────────────
@@ -98,3 +98,4 @@ app.include_router(gcash.router, prefix="/api", tags=["GCash"])
 app.include_router(inventory.router, prefix="/api", tags=["Inventory"])
 app.include_router(reports.router, prefix="/api", tags=["Reports"])
 app.include_router(printer.router, prefix="/api", tags=["Printer"])
+app.include_router(debt.router)

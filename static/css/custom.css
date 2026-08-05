@@ -14,25 +14,105 @@ html, body {
   height: 100%;
   overflow: hidden;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  color: #e2e8f0;
+  background: radial-gradient(circle at top right, #111827 0%, #090d16 60%, #030712 100%);
+  color: #f1f5f9;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Glassmorphism ───────────────────────────────────────────── */
+/* ── Glassmorphism & Brutalist Panels ───────────────────────── */
 .glass {
-  background: rgba(30, 41, 59, 0.7);
+  background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.5);
 }
 
 .glass-light {
-  background: rgba(51, 65, 85, 0.5);
+  background: rgba(30, 41, 59, 0.7);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 0.35);
+}
+
+/* ── Sleek Brutalist Buttons ────────────────────────────────── */
+.btn-brutalist-emerald {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  font-weight: 800;
+  border: 2px solid #059669;
+  box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.6);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-brutalist-emerald:hover {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.7);
+}
+
+.btn-brutalist-emerald:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px transparent;
+}
+
+.btn-brutalist-blue {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #ffffff;
+  font-weight: 800;
+  border: 2px solid #1d4ed8;
+  box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.6);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-brutalist-blue:hover {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.7);
+}
+
+.btn-brutalist-blue:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px transparent;
+}
+
+.denom-btn-brutalist {
+  background: #1e293b;
+  color: #ffffff;
+  font-weight: 800;
+  border: 2px solid #475569;
+  border-radius: 12px;
+  padding: 10px 4px;
+  box-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 0.5);
+  transition: all 0.15s ease;
+}
+
+.denom-btn-brutalist:hover {
+  background: #334155;
+  border-color: #10b981;
+  color: #10b981;
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px 0px rgba(16, 185, 129, 0.3);
+}
+
+.denom-btn-brutalist:active {
+  transform: translate(1px, 1px);
+  box-shadow: 0px 0px 0px 0px transparent;
+}
+
+.kbd-brutalist {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #34d399;
+  border: 1.5px solid #334155;
+  font-family: monospace;
+  font-weight: 800;
+  box-shadow: 1px 1px 0px 0px rgba(0,0,0,0.5);
 }
 
 /* ── Cart Item Animation ─────────────────────────────────────── */

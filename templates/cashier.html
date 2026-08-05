@@ -64,7 +64,10 @@
   <!-- ═══════════════════════════════════════════════════════════
        MAIN LAYOUT — 60 / 40 Split (Keyboard-First)
        ═══════════════════════════════════════════════════════════ -->
-  <main class="flex h-screen" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+  <!-- ═══════════════════════════════════════════════════════════
+       MAIN LAYOUT — 60 / 40 Split (Keyboard-First Sleek Brutalist)
+       ═══════════════════════════════════════════════════════════ -->
+  <main class="flex h-screen bg-obsidian">
 
     <!-- ═══════════ LEFT PANEL (60%) — SCAN & SEARCH ════════ -->
     <section class="w-[60%] flex flex-col p-4 gap-3 overflow-hidden">
@@ -72,17 +75,17 @@
       <!-- HEADER BAR -->
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-xl font-bold shadow-lg shadow-emerald-500/20">
+          <div class="w-11 h-11 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center text-2xl font-extrabold border-2 border-emerald-400 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.6)]">
             🏪
           </div>
           <div>
-            <h1 class="text-lg font-bold text-white leading-tight">Sari-Sari POS</h1>
-            <p class="text-xs text-slate-400">Keyboard Mode</p>
+            <h1 class="text-xl font-extrabold text-white tracking-tight leading-tight">Sari-Sari POS</h1>
+            <p class="text-xs text-emerald-400 font-mono font-bold tracking-wider">SLEEK KEYBOARD MODE</p>
           </div>
         </div>
         <div class="flex items-center gap-3">
           <!-- Context Mode Indicator -->
-          <div class="context-indicator"
+          <div class="context-indicator font-extrabold border-2 border-slate-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]"
                :class="{
                  'mode-scan': contextMode === 'scan',
                  'mode-search': contextMode === 'search',
@@ -94,7 +97,13 @@
                           contextMode === 'search' ? 'SEARCHING' :
                           contextMode === 'cart' ? 'CART NAV' : 'PAYMENT'"></span>
           </div>
-          <span class="text-xs text-slate-500" x-text="new Date().toLocaleDateString('en-PH', {weekday:'short', year:'numeric', month:'short', day:'numeric'})"></span>
+          <!-- Admin Link -->
+          <a href="/admin/inventory"
+             class="btn-brutalist-blue flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs transition-all cursor-pointer">
+            <span>⚙️ Admin</span>
+            <span class="kbd-brutalist text-[10px]">F9</span>
+          </a>
+          <span class="text-xs text-slate-400 font-mono font-semibold" x-text="new Date().toLocaleDateString('en-PH', {weekday:'short', year:'numeric', month:'short', day:'numeric'})"></span>
         </div>
       </div>
 
@@ -103,8 +112,8 @@
            ═══════════════════════════════════════════════════════ -->
       <div class="relative">
         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-          <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          <svg class="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
               d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
           </svg>
         </div>
@@ -116,12 +125,48 @@
           @keydown.enter.prevent="onSmartEnter()"
           placeholder="Scan barcode or type product name…"
           autocomplete="off"
-          class="w-full pl-14 pr-32 py-4 rounded-xl bg-slate-800/80 border-2 border-slate-600/50 text-white text-xl font-semibold placeholder:text-slate-500 transition-all duration-200"
+          class="w-full pl-14 pr-36 py-4 rounded-2xl bg-slate-900 border-2 border-slate-700 text-white text-2xl font-extrabold placeholder:text-slate-500 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.6)] focus:border-emerald-400 focus:outline-none transition-all duration-200"
         >
         <div class="absolute inset-y-0 right-0 pr-3 flex items-center gap-2">
-          <span class="text-xs text-slate-500 hidden sm:inline"
+          <span class="text-xs font-bold text-slate-400 hidden sm:inline"
                 x-text="inputLooksLikeBarcode || !smartInput ? 'Enter to scan' : '↑↓ navigate'"></span>
-          <span class="kbd">F1</span>
+          <span class="kbd-brutalist">F1</span>
+        </div>
+      </div>
+
+      <!-- MULTI-PACK HOTKEY CONVERSION BANNER -->
+      <div x-show="showBundleBanner && lastScannedProduct"
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 -translate-y-1 scale-98"
+           x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+           x-transition:leave="transition ease-in duration-150"
+           x-transition:leave-start="opacity-100"
+           x-transition:leave-end="opacity-0"
+           class="bg-gradient-to-r from-emerald-950/90 to-blue-950/90 border border-emerald-500/40 rounded-xl p-3 flex items-center justify-between shadow-lg"
+           style="display: none;">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs">
+            ⚡
+          </div>
+          <div>
+            <div class="text-xs font-bold text-white flex items-center gap-2">
+              <span x-text="lastScannedProduct?.name"></span>
+              <span class="text-[10px] text-emerald-400 font-normal bg-emerald-500/20 px-1.5 py-0.2 rounded">1 pc added</span>
+            </div>
+            <div class="text-[11px] text-slate-300 mt-0.5">
+              Press <span class="kbd text-amber-300 font-bold">1</span> for Half-Pack (<span x-text="Math.max(1, Math.round((lastScannedProduct?.pcs_per_pack || 12)/2)) + 'pcs'"></span>) &bull; Press <span class="kbd text-emerald-300 font-bold">2</span> for Full-Pack (<span x-text="(lastScannedProduct?.pcs_per_pack || 12) + 'pcs'"></span>)
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button @click="convertLastItemToPack('half')"
+                  class="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-bold transition-all cursor-pointer">
+            [1] Half-Pack (<span x-text="Math.max(1, Math.round((lastScannedProduct?.pcs_per_pack || 12)/2)) + 'pcs'"></span>)
+          </button>
+          <button @click="convertLastItemToPack('dozen')"
+                  class="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-bold transition-all cursor-pointer">
+            [2] Full-Pack (<span x-text="(lastScannedProduct?.pcs_per_pack || 12) + 'pcs'"></span>)
+          </button>
         </div>
       </div>
 
@@ -178,40 +223,63 @@
 
 
       <!-- ═══════════════════════════════════════════════════════
-           EMPTY STATE (when no search results shown)
+           PROMINENT QUICK ITEMS GRID (Replaces Empty Void!)
            ═══════════════════════════════════════════════════════ -->
-      <div x-show="searchResults.length === 0"
-           class="flex-1 flex flex-col justify-center items-center text-center select-none overflow-hidden"
-           style="min-height: 0;">
-
-        <!-- Scanning visual indicator -->
-        <div class="mb-4 opacity-20">
-          <svg class="w-20 h-20 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
-              d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
-          </svg>
+      <div x-show="searchResults.length === 0" class="flex-1 flex flex-col min-h-0 space-y-2">
+        <div class="flex items-center justify-between px-1">
+          <div class="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+            <span>⚡ Fast Select Quick Items</span>
+            <span class="kbd-brutalist text-[10px]">F3</span>
+          </div>
+          <span class="text-[11px] text-emerald-400 font-semibold" x-text="quickItems.length + ' items available'"></span>
         </div>
-        <p class="text-slate-500 text-sm font-medium">Scan a barcode or type to search</p>
-        <p class="text-slate-600 text-xs mt-1">USB scanner input is captured automatically</p>
+
+        <div class="grid grid-cols-3 gap-2.5 overflow-y-auto cart-scroll flex-1 p-1">
+          <template x-for="item in quickItems" :key="item.id">
+            <button @click="addToCart(item)"
+                    class="group relative flex flex-col justify-between p-3.5 rounded-2xl bg-slate-900 border-2 border-slate-700/80 hover:border-emerald-400 text-left shadow-[3px_3px_0px_0px_rgba(0,0,0,0.5)] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer overflow-hidden">
+              <!-- Item Accent Bar -->
+              <div class="absolute top-0 left-0 right-0 h-1.5" :style="`background: ${item.quick_button_color || '#10b981'}`"></div>
+              
+              <div class="mt-1">
+                <p class="text-sm font-extrabold text-white group-hover:text-emerald-300 line-clamp-2 leading-snug" x-text="item.name"></p>
+                <p class="text-[10px] text-slate-400 font-mono mt-0.5" x-text="item.category || 'General'"></p>
+              </div>
+
+              <div class="flex items-center justify-between mt-3 pt-2 border-t border-slate-800">
+                <span class="text-base font-extrabold text-emerald-400 font-mono" x-text="formatPrice(item.selling_price)"></span>
+                <span class="text-[10px] font-bold text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 uppercase" x-text="item.unit"></span>
+              </div>
+            </button>
+          </template>
+        </div>
       </div>
 
       <!-- ═══════════════════════════════════════════════════════
-           GCASH SERVICE BUTTONS (Compact Row)
+           QUICK ACTION BUTTONS (GCash & Utang Ledger)
            ═══════════════════════════════════════════════════════ -->
-      <div class="grid grid-cols-2 gap-2 flex-shrink-0">
+      <div class="grid grid-cols-3 gap-2 flex-shrink-0">
         <button
           @click="openGcashModal('GCASH_IN')"
-          class="flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs text-white shadow bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-blue-500/10 cursor-pointer transition-all duration-200 active:scale-[0.98] border border-blue-400/20"
+          class="flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs text-white bg-blue-700 border-2 border-blue-600 hover:bg-blue-600 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] cursor-pointer active:translate-x-[1px] active:translate-y-[1px] transition-all"
         >
           <span>📥</span>
-          <span>GCash Cash-In</span>
+          <span>GCash In</span>
         </button>
         <button
           @click="openGcashModal('GCASH_OUT')"
-          class="flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs text-white shadow bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 shadow-indigo-500/10 cursor-pointer transition-all duration-200 active:scale-[0.98] border border-indigo-400/20"
+          class="flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs text-white bg-indigo-700 border-2 border-indigo-600 hover:bg-indigo-600 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] cursor-pointer active:translate-x-[1px] active:translate-y-[1px] transition-all"
         >
           <span>📤</span>
-          <span>GCash Cash-Out</span>
+          <span>GCash Out</span>
+        </button>
+        <button
+          @click="openDebtLedgerModal()"
+          class="flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs text-amber-300 bg-amber-950/80 border-2 border-amber-500/60 hover:bg-amber-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] cursor-pointer active:translate-x-[1px] active:translate-y-[1px] transition-all"
+        >
+          <span>📝</span>
+          <span>Utang Ledger</span>
+          <span class="kbd-brutalist text-[9px]">F7</span>
         </button>
       </div>
 
@@ -248,6 +316,7 @@
 
       <!-- KEYBOARD SHORTCUTS HINT BAR -->
       <div class="flex items-center gap-3 text-[10px] text-slate-600 pt-0.5 flex-shrink-0 flex-wrap">
+        <span><span class="kbd text-emerald-400 font-bold">Enter</span> Checkout</span>
         <span><span class="kbd">F1</span> Focus</span>
         <span><span class="kbd">F2</span> GCash</span>
         <span><span class="kbd">F3</span> Quick</span>
@@ -308,7 +377,12 @@
 
               <!-- Item Info -->
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-white truncate cart-item-name" x-text="item.product_name"></p>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <p class="text-sm font-semibold text-white truncate cart-item-name" x-text="item.product_name"></p>
+                  <template x-if="item.pack_label">
+                    <span class="text-[10px] font-bold text-amber-300 bg-amber-500/20 px-1.5 py-0.2 rounded border border-amber-500/30" x-text="item.pack_label"></span>
+                  </template>
+                </div>
                 <div class="flex items-center gap-2 mt-0.5">
                   <!-- Quantity (click to edit) -->
                   <template x-if="editingCartIndex !== index">
@@ -348,93 +422,45 @@
           </template>
         </div>
 
-        <!-- Cart Footer / Payment Area -->
-        <div class="border-t border-white/[0.06] px-5 py-3 space-y-3">
+        <!-- Cart Footer / Payment Area (Sleek Brutalist) -->
+        <div class="border-t-2 border-slate-700/80 px-5 py-4 space-y-3.5 bg-slate-900/60">
 
           <!-- Total -->
           <div class="flex items-center justify-between" id="cart-total">
-            <span class="text-sm font-medium text-slate-400">Total</span>
-            <span class="text-2xl font-extrabold text-emerald-400" x-text="formatPrice(total)"></span>
+            <span class="text-sm font-bold uppercase tracking-wider text-slate-400">Total Amount</span>
+            <span class="text-3xl font-extrabold text-emerald-400 font-mono" x-text="formatPrice(total)"></span>
           </div>
 
-          <!-- Print Receipt Toggle -->
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-slate-400 flex items-center gap-1.5">
-              <span>🖨️</span> Print Receipt
-            </span>
-            <label class="toggle-switch">
-              <input type="checkbox" x-model="printReceipt">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-
-          <!-- Amount Tendered + Denomination Buttons -->
-          <div>
-            <label class="text-xs text-slate-400 mb-1 block">Amount Tendered <span class="kbd text-[9px] ml-1">F5</span></label>
-            <input
-              type="number"
-              id="amount-tendered"
-              x-model="amountTendered"
-              placeholder="0.00"
-              step="0.01"
-              min="0"
-              @focus="paymentFocused = true; contextMode = 'pay'"
-              class="w-full px-3 py-2.5 rounded-lg bg-slate-800/80 border border-slate-600/50 text-white text-lg font-semibold placeholder:text-slate-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-all duration-200"
-            >
-            <!-- Quick Denomination Buttons -->
-            <div class="flex gap-1.5 mt-2">
-              <button class="denom-btn flex-1" @click="setDenomination(20)">₱20</button>
-              <button class="denom-btn flex-1" @click="setDenomination(50)">₱50</button>
-              <button class="denom-btn flex-1" @click="setDenomination(100)">₱100</button>
-              <button class="denom-btn flex-1" @click="setDenomination(200)">₱200</button>
-              <button class="denom-btn flex-1" @click="setDenomination(500)">₱500</button>
-              <button class="denom-btn flex-1" @click="setDenomination(1000)">₱1K</button>
-            </div>
-          </div>
-
-          <!-- Change Display -->
-          <div class="flex items-center justify-between py-1 px-3 rounded-lg"
-               :class="change > 0 ? 'bg-emerald-500/10' : 'bg-slate-800/40'">
-            <span class="text-xs font-medium text-slate-400">Change</span>
-            <span class="text-lg font-bold"
-                  :class="change > 0 ? 'text-emerald-400' : 'text-slate-500'"
-                  x-text="formatPrice(change)"></span>
-          </div>
-
-          <!-- Payment Button -->
+          <!-- Payment Button (Big Tactile Brutalist Emerald) -->
           <div class="w-full">
             <button
-              @click="processPayment('CASH')"
+              @click="initiatePayment()"
               :disabled="isProcessing || cart.length === 0"
-              class="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white shadow-lg transition-all duration-200
-                     bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400
-                     shadow-emerald-500/20 hover:shadow-emerald-500/30
-                     disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-emerald-600 disabled:hover:to-emerald-500"
+              class="w-full btn-brutalist-emerald py-3.5 px-4 rounded-xl font-extrabold text-base flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <template x-if="isProcessing">
                 <div class="spinner"></div>
               </template>
               <template x-if="!isProcessing">
-                <span>💵 Complete Sale</span>
+                <span class="tracking-wide">💵 CHECKOUT / PAY</span>
               </template>
-              <span class="kbd text-[9px] ml-1">F5</span>
+              <span class="kbd-brutalist text-[10px]">Enter</span>
             </button>
           </div>
 
-          <!-- Secondary Actions -->
-          <div class="grid grid-cols-3 gap-2">
+          <!-- Secondary Brutalist Action Buttons -->
+          <div class="grid grid-cols-3 gap-2 pt-1">
             <button @click="clearCart()"
                     :disabled="cart.length === 0"
-                    class="py-2 rounded-lg text-xs font-semibold text-slate-400 bg-slate-800/60 border border-slate-700/50 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 transition-all duration-200
-                           disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-slate-800/60 disabled:hover:text-slate-400 disabled:hover:border-slate-700/50">
+                    class="py-2.5 rounded-xl text-xs font-extrabold text-slate-300 bg-slate-800 border-2 border-slate-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] hover:border-red-400 hover:text-red-400 active:translate-x-[1px] active:translate-y-[1px] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">
               🗑️ Clear
             </button>
-            <button @click="showGcashModal = true"
-                    class="py-2 rounded-lg text-xs font-semibold text-slate-400 bg-slate-800/60 border border-slate-700/50 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30 transition-all duration-200">
+            <button @click="openGcashModal('INCOME')"
+                    class="py-2.5 rounded-xl text-xs font-extrabold text-slate-300 bg-slate-800 border-2 border-slate-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] hover:border-blue-400 hover:text-blue-400 active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer">
               📱 GCash
             </button>
             <button @click="printZReport()"
-                    class="py-2 rounded-lg text-xs font-semibold text-slate-400 bg-slate-800/60 border border-slate-700/50 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30 transition-all duration-200">
+                    class="py-2.5 rounded-xl text-xs font-extrabold text-slate-300 bg-slate-800 border-2 border-slate-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] hover:border-amber-400 hover:text-amber-400 active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer">
               📊 Z-Report
             </button>
           </div>
@@ -759,6 +785,398 @@
     </div>
   </div>
 
+
+  <!-- ═══════════════════════════════════════════════════════════
+       BIG PAYMENT CHECKOUT MODAL (Cash & GCash Tabs)
+       ═══════════════════════════════════════════════════════════ -->
+  <div x-show="showPaymentModal"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0 scale-95"
+       x-transition:enter-end="opacity-100 scale-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100 scale-100"
+       x-transition:leave-end="opacity-0 scale-95"
+       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+       style="display: none;">
+
+    <div class="bg-slate-900 border-2 border-slate-700 rounded-3xl w-full max-w-2xl shadow-[8px_8px_0px_0px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col">
+      <!-- Header -->
+      <div class="bg-slate-950 px-6 py-4 border-b-2 border-slate-800 flex items-center justify-between">
+        <div>
+          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Checkout Payment</div>
+          <div class="text-3xl font-extrabold text-emerald-400 mt-0.5 font-mono" x-text="formatPrice(total)"></div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="px-3 py-1 rounded-full bg-slate-800 text-xs font-extrabold text-slate-300 border border-slate-700"
+                x-text="totalItems + ' item' + (totalItems > 1 ? 's' : '')"></span>
+          <button @click="showPaymentModal = false; focusSmartInput()" class="text-slate-400 hover:text-white text-xl p-1 font-bold">✕</button>
+        </div>
+      </div>
+
+      <!-- Mode Tabs: Cash vs GCash vs Utang -->
+      <div class="flex border-b-2 border-slate-800 bg-slate-950">
+        <button @click="paymentTab = 'cash'"
+                class="flex-1 py-3.5 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 border-b-2 transition-all cursor-pointer"
+                :class="paymentTab === 'cash' ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' : 'border-transparent text-slate-400 hover:text-slate-200'">
+          <span>💵 CASH</span>
+          <span class="kbd-brutalist text-[10px]">F1</span>
+        </button>
+        <button @click="paymentTab = 'gcash'"
+                class="flex-1 py-3.5 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 border-b-2 transition-all cursor-pointer"
+                :class="paymentTab === 'gcash' ? 'border-blue-500 text-blue-400 bg-blue-500/10' : 'border-transparent text-slate-400 hover:text-slate-200'">
+          <span>📱 GCASH</span>
+          <span class="kbd-brutalist text-[10px]">F2</span>
+        </button>
+        <button @click="paymentTab = 'utang'; $nextTick(() => focusDebtCustomerInput())"
+                class="flex-1 py-3.5 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 border-b-2 transition-all cursor-pointer"
+                :class="paymentTab === 'utang' ? 'border-amber-500 text-amber-400 bg-amber-500/10' : 'border-transparent text-slate-400 hover:text-slate-200'">
+          <span>📝 UTANG / DEBT</span>
+          <span class="kbd-brutalist text-[10px]">F4</span>
+        </button>
+      </div>
+
+      <!-- TAB 1: CASH PAYMENT -->
+      <div x-show="paymentTab === 'cash'" class="p-6 space-y-5">
+        <!-- Big Amount Tendered Input -->
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+            <span>Amount Given by Customer (₱)</span>
+            <span class="text-xs text-slate-500 font-normal">Type amount or tap quick buttons below</span>
+          </label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-5 flex items-center text-emerald-400 font-extrabold text-3xl">₱</span>
+            <input type="number"
+                   id="big-amount-tendered"
+                   x-model="amountTendered"
+                   step="0.01"
+                   min="0"
+                   placeholder="0.00"
+                   class="w-full pl-14 pr-6 py-4 bg-slate-950 border-2 border-slate-700 rounded-2xl text-white text-3xl font-extrabold text-right focus:border-emerald-400 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 font-mono transition-all">
+          </div>
+        </div>
+
+        <!-- Quick Denomination Buttons Grid (Brutalist) -->
+        <div class="grid grid-cols-4 gap-2.5">
+          <button @click="setDenomination(total)" class="py-3 bg-slate-800 hover:bg-emerald-600/30 text-emerald-300 font-extrabold rounded-xl border-2 border-emerald-500/40 text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer">
+            Exact (₱<span x-text="total.toFixed(0)"></span>)
+          </button>
+          <button @click="setDenomination(20)" class="denom-btn-brutalist text-base">₱20</button>
+          <button @click="setDenomination(50)" class="denom-btn-brutalist text-base">₱50</button>
+          <button @click="setDenomination(100)" class="denom-btn-brutalist text-base">₱100</button>
+
+          <button @click="setDenomination(200)" class="denom-btn-brutalist text-base">₱200</button>
+          <button @click="setDenomination(500)" class="denom-btn-brutalist text-base">₱500</button>
+          <button @click="setDenomination(1000)" class="denom-btn-brutalist text-base">₱1,000</button>
+          <button @click="setDenomination(2000)" class="denom-btn-brutalist text-base">₱2,000</button>
+        </div>
+
+        <!-- Massive Change Banner -->
+        <div class="p-4 rounded-2xl border-2 flex items-center justify-between transition-all"
+             :class="change >= 0 ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-400' : 'bg-red-950/60 border-red-500/40 text-red-400'">
+          <div>
+            <div class="text-xs font-extrabold uppercase tracking-wider opacity-90" x-text="change >= 0 ? 'Change Due to Customer' : 'Still Short (Need More Cash)'"></div>
+            <div class="text-4xl font-extrabold tracking-tight mt-1 font-mono" x-text="formatPrice(Math.abs(change))"></div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs font-bold text-slate-400">Total Charged</div>
+            <div class="text-xl font-extrabold text-white font-mono" x-text="formatPrice(total)"></div>
+          </div>
+        </div>
+
+        <!-- Action Button (Brutalist Emerald) -->
+        <button @click="processPayment('CASH')"
+                :disabled="isProcessing || change < 0"
+                class="w-full btn-brutalist-emerald py-4 rounded-2xl font-extrabold text-lg text-white flex items-center justify-center gap-3 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+          <template x-if="isProcessing"><div class="spinner"></div></template>
+          <template x-if="!isProcessing">
+            <span class="flex items-center gap-2">
+              <span>🚀 COMPLETE SALE & CLOSE</span>
+              <span class="kbd-brutalist text-xs">Enter</span>
+            </span>
+          </template>
+        </button>
+      </div>
+
+      <!-- TAB 2: GCASH PAYMENT -->
+      <div x-show="paymentTab === 'gcash'" class="p-6 space-y-5">
+        <div class="bg-blue-950/50 p-4 rounded-2xl border border-blue-800/50 flex items-center justify-between">
+          <div>
+            <div class="text-xs text-blue-300 font-bold uppercase tracking-wider">GCash Checkout Total</div>
+            <div class="text-3xl font-extrabold text-blue-400" x-text="formatPrice(total)"></div>
+          </div>
+          <div class="w-12 h-12 bg-blue-600/30 rounded-xl flex items-center justify-center text-2xl">
+            📱
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">GCash Reference No. (Optional)</label>
+            <input type="text"
+                   x-model="referenceNumber"
+                   placeholder="e.g. 5042504295085"
+                   class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-base font-semibold focus:border-blue-500 focus:outline-none">
+          </div>
+        </div>
+
+        <button @click="processPayment('GCASH')"
+                :disabled="isProcessing"
+                class="w-full btn-brutalist-blue py-4 rounded-2xl font-extrabold text-lg text-white shadow-xl transition-all flex items-center justify-center gap-3 cursor-pointer
+                       disabled:opacity-40 disabled:cursor-not-allowed">
+          <template x-if="isProcessing"><div class="spinner"></div></template>
+          <template x-if="!isProcessing">
+            <span class="flex items-center gap-2">
+              <span>📱 CONFIRM GCASH TRANSACTION</span>
+              <span class="kbd-brutalist text-xs">Enter</span>
+            </span>
+          </template>
+        </button>
+      </div>
+
+      <!-- TAB 3: UTANG / DEBT PAYMENT -->
+      <div x-show="paymentTab === 'utang'" class="p-6 space-y-5">
+        <div class="bg-amber-950/60 p-4 rounded-2xl border-2 border-amber-500/50 flex items-center justify-between">
+          <div>
+            <div class="text-xs text-amber-400 font-extrabold uppercase tracking-wider">Charge Total Sale to Utang</div>
+            <div class="text-3xl font-extrabold text-amber-300 font-mono mt-0.5" x-text="formatPrice(total)"></div>
+          </div>
+          <div class="w-12 h-12 bg-amber-500/20 text-amber-400 rounded-2xl border border-amber-500/40 flex items-center justify-center text-2xl font-bold">
+            📝
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <!-- Customer Name Input with Datalist -->
+          <div>
+            <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+              Customer Name / Identification *
+            </label>
+            <input type="text"
+                   id="debt-customer-name"
+                   x-model="debtCustomerName"
+                   list="debt-customers-list"
+                   placeholder="e.g. Aling Nena, Mang Juan, Cardo..."
+                   class="w-full px-4 py-3 bg-slate-950 border-2 border-slate-700 rounded-xl text-white font-extrabold text-base focus:border-amber-400 focus:outline-none transition-all">
+            <datalist id="debt-customers-list">
+              <template x-for="d in debtCustomers" :key="d.id">
+                <option :value="d.customer_name" x-text="`Current Debt: ${formatPrice(d.total_debt)}`"></option>
+              </template>
+            </datalist>
+          </div>
+
+          <!-- Partial Cash Paid Now (Optional) -->
+          <div>
+            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+              Partial Cash Paid Today (₱) — <span class="text-slate-500 font-normal">Optional</span>
+            </label>
+            <input type="number"
+                   step="0.01"
+                   min="0"
+                   x-model.number="debtPaidNow"
+                   placeholder="0.00"
+                   class="w-full px-4 py-2.5 bg-slate-950 border-2 border-slate-700 rounded-xl text-white font-bold text-sm text-right font-mono focus:border-amber-400 focus:outline-none">
+          </div>
+
+          <!-- Debt Summary Box -->
+          <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex justify-between items-center text-xs">
+            <span class="text-slate-400">Net Added to Customer Debt:</span>
+            <span class="text-lg font-extrabold text-amber-400 font-mono" x-text="formatPrice(Math.max(0, total - (debtPaidNow || 0)))"></span>
+          </div>
+        </div>
+
+        <!-- Submit Utang Button -->
+        <button @click="processUtangSale()"
+                :disabled="isProcessing || !debtCustomerName.trim()"
+                class="w-full py-4 rounded-2xl font-extrabold text-base text-slate-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 border-2 border-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.6)] active:translate-x-[1px] active:translate-y-[1px] transition-all flex items-center justify-center gap-3 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+          <template x-if="isProcessing"><div class="spinner"></div></template>
+          <template x-if="!isProcessing">
+            <span class="flex items-center gap-2">
+              <span>🚀 CHARGE TO UTANG & LOG SALE</span>
+              <span class="kbd-brutalist text-xs text-slate-950 border-slate-950">Enter</span>
+            </span>
+          </template>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SALE COMPLETED SUCCESS OVERLAY
+       ═══════════════════════════════════════════════════════════ -->
+  <div x-show="showSuccessModal"
+       x-transition:enter="transition ease-out duration-250"
+       x-transition:enter-start="opacity-0 scale-90"
+       x-transition:enter-end="opacity-100 scale-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md"
+       style="display: none;">
+
+    <div class="bg-slate-900 border-2 border-emerald-500 rounded-3xl w-full max-w-md shadow-[8px_8px_0px_0px_rgba(16,185,129,0.3)] p-6 text-center space-y-5">
+      <!-- Success Icon -->
+      <div class="w-20 h-20 bg-emerald-500 text-slate-950 rounded-2xl flex items-center justify-center text-4xl font-extrabold mx-auto border-2 border-emerald-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.6)]">
+        ✓
+      </div>
+
+      <div>
+        <h2 class="text-2xl font-extrabold text-white tracking-tight">Transaction Completed!</h2>
+        <p class="text-xs font-semibold text-emerald-400 mt-1 font-mono uppercase tracking-wider">Inventory & Sales Logged</p>
+      </div>
+
+      <!-- Change Due Display -->
+      <div class="bg-emerald-950 border-2 border-emerald-500/60 rounded-2xl p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)]">
+        <div class="text-xs font-extrabold text-emerald-400 uppercase tracking-widest mb-1">CHANGE TO GIVE CUSTOMER</div>
+        <div class="text-5xl font-extrabold text-emerald-300 font-mono tracking-tight" x-text="formatPrice(lastSaleDetails.change)"></div>
+        <div class="text-xs text-slate-300 mt-3 flex justify-center gap-4 border-t border-emerald-800/60 pt-2.5">
+          <span>Tendered: <b class="text-white font-mono" x-text="formatPrice(lastSaleDetails.tendered)"></b></span>
+          <span>Total: <b class="text-white font-mono" x-text="formatPrice(lastSaleDetails.total)"></b></span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="space-y-2 pt-2">
+        <button @click="closeSuccessModal()"
+                class="w-full btn-brutalist-emerald py-3.5 text-white font-extrabold text-base rounded-xl flex items-center justify-center gap-2 cursor-pointer">
+          <span>⚡ NEXT CUSTOMER SALE</span>
+          <span class="kbd-brutalist text-xs">Enter / Esc</span>
+        </button>
+
+        <div class="flex items-center justify-between px-2 pt-1 text-xs text-slate-400">
+          <span class="flex items-center gap-1">🖨️ Print Thermal Receipt</span>
+          <label class="toggle-switch">
+            <input type="checkbox" x-model="printReceipt">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════════
+       CUSTOMER DEBT LEDGER & REPAYMENT MODAL (F7)
+       ═══════════════════════════════════════════════════════════ -->
+  <div x-show="showDebtLedgerModal"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0 scale-95"
+       x-transition:enter-end="opacity-100 scale-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100 scale-100"
+       x-transition:leave-end="opacity-0 scale-95"
+       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md"
+       style="display: none;">
+
+    <div class="bg-slate-900 border-2 border-amber-500/60 rounded-3xl w-full max-w-3xl max-h-[90vh] shadow-[8px_8px_0px_0px_rgba(0,0,0,0.7)] overflow-hidden flex flex-col">
+      <!-- Header -->
+      <div class="bg-slate-950 px-6 py-4 border-b-2 border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-xl font-bold">
+            📝
+          </div>
+          <div>
+            <h2 class="text-xl font-extrabold text-white tracking-tight">Customer Utang Ledger</h2>
+            <p class="text-xs text-amber-400 font-mono font-semibold">Store Credit Accounts & Repayments</p>
+          </div>
+        </div>
+        <button @click="showDebtLedgerModal = false; focusSmartInput()" class="text-slate-400 hover:text-white text-xl p-1 font-bold">✕</button>
+      </div>
+
+      <div class="p-6 overflow-y-auto cart-scroll space-y-4 flex-1">
+        <!-- Search & Filter Bar -->
+        <div class="flex items-center gap-3">
+          <input type="text"
+                 x-model="debtSearchQuery"
+                 @input.debounce.200ms="loadDebtList()"
+                 placeholder="Search customer name..."
+                 class="flex-1 px-4 py-2.5 bg-slate-950 border-2 border-slate-700 rounded-xl text-white font-semibold text-sm focus:border-amber-400 focus:outline-none">
+          <button @click="loadDebtList()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700 cursor-pointer">
+            🔄 Refresh
+          </button>
+        </div>
+
+        <!-- Debt Accounts Table -->
+        <div class="border-2 border-slate-800 rounded-2xl overflow-hidden bg-slate-950">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-900 text-slate-400 uppercase font-extrabold border-b-2 border-slate-800 text-[10px] tracking-wider">
+              <tr>
+                <th class="px-4 py-3">Customer Name</th>
+                <th class="px-4 py-3 text-right">Outstanding Debt</th>
+                <th class="px-4 py-3 text-center">Last Updated</th>
+                <th class="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/80">
+              <template x-if="debtCustomers.length === 0">
+                <tr>
+                  <td colspan="4" class="px-4 py-8 text-center text-slate-500 font-medium">
+                    No customer debt records found.
+                  </td>
+                </tr>
+              </template>
+              <template x-for="customer in debtCustomers" :key="customer.id">
+                <tr class="hover:bg-slate-900/60 transition-all">
+                  <td class="px-4 py-3.5 font-extrabold text-white text-sm" x-text="customer.customer_name"></td>
+                  <td class="px-4 py-3.5 text-right font-mono font-extrabold text-sm"
+                      :class="customer.total_debt > 0 ? 'text-amber-400' : 'text-emerald-400'"
+                      x-text="formatPrice(customer.total_debt)"></td>
+                  <td class="px-4 py-3.5 text-center text-slate-400 font-mono text-[11px]" x-text="new Date(customer.updated_at).toLocaleDateString()"></td>
+                  <td class="px-4 py-3.5 text-right space-x-1.5">
+                    <button @click="openRepaymentModal(customer)"
+                            :disabled="customer.total_debt <= 0"
+                            class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-lg text-xs border border-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">
+                      💵 Pay Debt
+                    </button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REPAYMENT DRAWER MODAL -->
+  <div x-show="showRepaymentModal && selectedDebtCustomer"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0 scale-95"
+       x-transition:enter-end="opacity-100 scale-100"
+       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md"
+       style="display: none;">
+    <div class="bg-slate-900 border-2 border-emerald-500 rounded-3xl w-full max-w-md p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <div class="text-xs text-emerald-400 font-bold uppercase tracking-wider">Record Debt Payment</div>
+          <div class="text-xl font-extrabold text-white mt-0.5" x-text="selectedDebtCustomer?.customer_name"></div>
+        </div>
+        <button @click="showRepaymentModal = false" class="text-slate-400 hover:text-white font-bold">✕</button>
+      </div>
+
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 flex justify-between items-center">
+        <span class="text-xs text-slate-400 font-bold uppercase">Current Outstanding Debt:</span>
+        <span class="text-2xl font-extrabold text-amber-400 font-mono" x-text="formatPrice(selectedDebtCustomer?.total_debt)"></span>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Payment Received Today (₱) *</label>
+        <input type="number"
+               step="0.01"
+               min="0.01"
+               x-model.number="repaymentAmount"
+               placeholder="0.00"
+               class="w-full px-4 py-3 bg-slate-950 border-2 border-slate-700 rounded-xl text-white font-extrabold text-2xl text-right font-mono focus:border-emerald-400 focus:outline-none">
+      </div>
+
+      <button @click="processDebtRepayment()"
+              :disabled="isProcessing || !repaymentAmount || repaymentAmount <= 0"
+              class="w-full btn-brutalist-emerald py-4 rounded-2xl font-extrabold text-base text-white cursor-pointer disabled:opacity-40">
+        ✓ RECEIVE PAYMENT & UPDATE BALANCE
+      </button>
+    </div>
+  </div>
 
 </body>
 </html>

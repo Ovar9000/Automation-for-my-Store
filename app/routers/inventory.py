@@ -183,8 +183,9 @@ async def create_product(data: ProductCreate, db=Depends(get_db)):
     cursor = await db.execute(
         """INSERT INTO products
            (barcode, name, cost_price, selling_price, stock_qty, low_stock_threshold,
-            unit, is_quick_item, quick_button_color, category)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            unit, is_quick_item, quick_button_color, category, half_dozen_price, dozen_price,
+            pcs_per_pack, bulk_cost_price, full_pack_price)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             data.barcode,
             data.name.strip(),
@@ -196,6 +197,11 @@ async def create_product(data: ProductCreate, db=Depends(get_db)):
             1 if data.is_quick_item else 0,     # Bool → INTEGER for SQLite
             data.quick_button_color,
             data.category,
+            round(data.half_dozen_price, 2) if data.half_dozen_price is not None else None,
+            round(data.dozen_price, 2) if data.dozen_price is not None else None,
+            data.pcs_per_pack or 1,
+            round(data.bulk_cost_price, 2) if data.bulk_cost_price is not None else None,
+            round(data.full_pack_price, 2) if data.full_pack_price is not None else None,
         )
     )
     product_id = cursor.lastrowid

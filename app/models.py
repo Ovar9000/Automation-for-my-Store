@@ -25,6 +25,11 @@ class ProductCreate(BaseModel):
     is_quick_item: bool = False
     quick_button_color: str = "#10b981"
     category: str = "General"
+    half_dozen_price: Optional[float] = None
+    dozen_price: Optional[float] = None
+    pcs_per_pack: Optional[int] = 1
+    bulk_cost_price: Optional[float] = None
+    full_pack_price: Optional[float] = None
 
 
 class ProductUpdate(BaseModel):
@@ -39,6 +44,11 @@ class ProductUpdate(BaseModel):
     is_quick_item: Optional[bool] = None
     quick_button_color: Optional[str] = None
     category: Optional[str] = None
+    half_dozen_price: Optional[float] = None
+    dozen_price: Optional[float] = None
+    pcs_per_pack: Optional[int] = None
+    bulk_cost_price: Optional[float] = None
+    full_pack_price: Optional[float] = None
 
 
 class ProductResponse(BaseModel):
@@ -54,6 +64,11 @@ class ProductResponse(BaseModel):
     is_quick_item: bool
     quick_button_color: str
     category: str
+    half_dozen_price: Optional[float] = None
+    dozen_price: Optional[float] = None
+    pcs_per_pack: Optional[int] = 1
+    bulk_cost_price: Optional[float] = None
+    full_pack_price: Optional[float] = None
     is_low_stock: bool = False          # Computed field
 
 
