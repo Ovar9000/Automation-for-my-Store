@@ -42,10 +42,15 @@ function cashierApp() {
     debtCustomers: [],
     debtSearchQuery: '',
     debtCustomerName: '',
+    showDebtDropdown: false,
     debtPaidNow: '',
     showRepaymentModal: false,
     selectedDebtCustomer: null,
     repaymentAmount: '',
+    showAddCustomerModal: false,
+    newCustomerName: '',
+    newCustomerPhone: '',
+    newCustomerInitialDebt: '',
 
     // ── Computed ──────────────────────────────────────────────
     get total() {
@@ -535,6 +540,59 @@ function cashierApp() {
       await this.loadDebtList();
     },
 
+    getQuickCardBg(item) {
+      const color = item.quick_button_color || '#3b82f6';
+      return `linear-gradient(145deg, ${color}35 0%, #0f172a 100%)`;
+    },
+
+    findDebtCustomer(name) {
+      if (!name || !name.trim()) return null;
+      const clean = name.trim().toLowerCase();
+      return this.debtCustomers.find(c => c.customer_name.toLowerCase() === clean) || null;
+    },
+
+    getMatchingDebtCustomers() {
+      if (!this.debtCustomerName || !this.debtCustomerName.trim()) return this.debtCustomers.slice(0, 5);
+      const query = this.debtCustomerName.trim().toLowerCase();
+      return this.debtCustomers.filter(c => c.customer_name.toLowerCase().includes(query)).slice(0, 5);
+    },
+
+    async createNewCustomerAccount() {
+      if (!this.newCustomerName.trim()) return;
+
+      this.isProcessing = true;
+      try {
+        const initialDebt = parseFloat(this.newCustomerInitialDebt) || 0;
+        const res = await fetch('/api/debts/charge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customer_name: this.newCustomerName.trim(),
+            amount_charged: initialDebt > 0 ? initialDebt : 0.01,
+            phone_number: this.newCustomerPhone.trim() || null,
+            notes: 'Registered upfront via Utang Ledger'
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || 'Failed to create customer account');
+        }
+
+        this.showNotification(`Customer account '${this.newCustomerName.trim()}' created!`, 'success');
+        this.showAddCustomerModal = false;
+        this.newCustomerName = '';
+        this.newCustomerPhone = '';
+        this.newCustomerInitialDebt = '';
+        await this.loadDebtList();
+      } catch (err) {
+        console.error('Create debt account error:', err);
+        alert(err.message || 'Failed to create customer account.');
+      } finally {
+        this.isProcessing = false;
+      }
+    },
+
     async loadDebtList() {
       try {
         const query = this.debtSearchQuery.trim() ? `?search=${encodeURIComponent(this.debtSearchQuery.trim())}` : '';
@@ -564,41 +622,33 @@ function cashierApp() {
       this.isProcessing = true;
 
       try {
-        // 1. Process store checkout
-        const payload = {
-          items: this.cart.map(i => ({
-            product_id: i.product_id,
-            quantity: i.quantity,
-            unit_price: i.unit_price,
-            cost_price: i.cost_price,
-            subtotal: i.subtotal
-          })),
-          total_amount: this.total,
-          payment_type: 'UTANG',
-          amount_tendered: parseFloat(this.debtPaidNow) || 0,
-          change_amount: 0,
-          notes: `Utang sale for ${this.debtCustomerName.trim()}`
-        };
+        const amountPaidNow = parseFloat(this.debtPaidNow) || 0;
 
-        const res = await fetch('/api/checkout', {
+        // 1. Process store transaction
+        const res = await fetch('/api/transactions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            items: this.cart,
+            total_amount: this.total,
+            payment_method: 'UTANG',
+            amount_tendered: amountPaidNow,
+            print_receipt: false,
+          })
         });
 
         if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.detail || 'Checkout failed');
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || 'Transaction failed');
         }
 
         const saleResult = await res.json();
 
         // 2. Charge balance to customer debt account
-        const amountPaidNow = parseFloat(this.debtPaidNow) || 0;
         const amountCharged = Math.max(0, this.total - amountPaidNow);
 
         if (amountCharged > 0) {
-          await fetch('/api/debts/charge', {
+          const debtRes = await fetch('/api/debts/charge', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -606,21 +656,28 @@ function cashierApp() {
               sale_id: saleResult.id,
               amount_charged: amountCharged,
               amount_paid_now: amountPaidNow,
-              notes: `Store Sale #${saleResult.receipt_number}`
+              notes: `Store Sale #${saleResult.id}`
             })
           });
+
+          if (!debtRes.ok) {
+            const errData = await debtRes.json().catch(() => ({}));
+            throw new Error(errData.detail || 'Failed to update debt account');
+          }
         }
 
         this.lastSaleDetails = {
           total: this.total,
           tendered: amountPaidNow,
           change: 0,
-          itemsCount: this.totalItems
+          itemsCount: this.totalItems,
+          method: 'UTANG'
         };
 
         this.showPaymentModal = false;
         this.showSuccessModal = true;
-        this.clearCart();
+        this.cart = [];
+        this.saveCart();
         this.debtCustomerName = '';
         this.debtPaidNow = '';
         await this.loadDebtList();

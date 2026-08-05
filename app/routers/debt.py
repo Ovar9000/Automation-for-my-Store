@@ -10,7 +10,7 @@ from typing import Optional, List
 import aiosqlite
 from app.database import get_db
 
-router = APIRouter(prefix="/api/debts", tags=["Debts"])
+router = APIRouter()
 
 
 # ─── Pydantic Schemas ────────────────────────────────────────────────

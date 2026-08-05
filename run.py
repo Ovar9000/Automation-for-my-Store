@@ -39,6 +39,6 @@ if __name__ == "__main__":
         "app.main:app",
         host="0.0.0.0",
         port=8000,
-        reload=False,       # Disable for production stability
+        reload=True,       # Auto-reload on backend changes
         log_level="info",
     )
