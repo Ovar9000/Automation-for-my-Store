@@ -154,7 +154,7 @@ async def pay_debt(debt_id: int, req: DebtPaymentRequest, db=Depends(get_db)):
     receipt_no = f"UTANG-PAY-{uuid.uuid4().hex[:6].upper()}"
     await db.execute(
         """INSERT INTO transactions
-           (receipt_number, total_amount, payment_type, amount_tendered, change_amount, transaction_type, notes)
+           (receipt_number, total_amount, payment_method, amount_tendered, change_amount, transaction_type, notes)
            VALUES (?, ?, 'CASH', ?, 0, 'UTANG_PAYMENT', ?)""",
         (receipt_no, payment, payment, f"Utang Payment from {customer['customer_name']}")
     )

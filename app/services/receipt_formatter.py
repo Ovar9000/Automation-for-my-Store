@@ -162,6 +162,7 @@ def format_z_report(
     date: str,
     total_cash_sales: float,
     total_gcash_sales: float,
+    total_utang_sales: float,
     total_gcash_fees: float,
     grand_total: float,
     transaction_count: int,
@@ -186,6 +187,7 @@ def format_z_report(
 
     lines.append(left_right("Cash Sales:", format_price(total_cash_sales)))
     lines.append(left_right("GCash Sales:", format_price(total_gcash_sales)))
+    lines.append(left_right("Utang Sales:", format_price(total_utang_sales)))
     lines.append(left_right("GCash Fees:", format_price(total_gcash_fees)))
     lines.append(THIN_SEP)
 

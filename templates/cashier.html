@@ -233,27 +233,23 @@
           <span class="text-[11px] text-emerald-400 font-semibold" x-text="quickItems.length + ' items available'"></span>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto cart-scroll flex-1 p-1 content-start auto-rows-max">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 overflow-y-auto cart-scroll flex-1 p-1 content-start auto-rows-max">
           <template x-for="item in quickItems" :key="item.id">
             <button @click="addToCart(item)"
-                    class="group relative flex flex-col justify-between p-3.5 rounded-2xl border-2 text-left shadow-[3px_3px_0px_0px_rgba(0,0,0,0.6)] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer min-h-[95px] overflow-hidden"
-                    :style="`background: ${getQuickCardBg(item)}; border-color: ${item.quick_button_color || '#334155'};`">
-              <!-- Top Row: Category tag + Unit -->
-              <div class="flex items-center justify-between gap-1 w-full">
-                <span class="text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-black/40 text-slate-200 border border-white/10"
-                      x-text="item.category || 'General'"></span>
-                <span class="text-[9px] font-bold uppercase text-slate-300 bg-black/30 px-1.5 py-0.5 rounded" x-text="item.unit"></span>
+                    class="group relative flex flex-col justify-between p-4 rounded-xl border-l-4 text-left hover:brightness-125 active:scale-[0.97] transition-all duration-150 cursor-pointer min-h-[88px]"
+                    :style="`background: ${getQuickCardBg(item)}; border-left-color: ${item.quick_button_color || '#3b82f6'};`">
+
+              <!-- Product Name + Unit -->
+              <div class="flex items-baseline gap-1.5">
+                <p class="text-base font-extrabold text-white group-hover:text-amber-300 transition-colors line-clamp-1 leading-tight" x-text="item.name"></p>
+                <span class="text-xs font-semibold text-slate-400 uppercase whitespace-nowrap flex-shrink-0"
+                      x-text="item.unit === 'kg' ? '/kg' : item.unit === 'L' ? '/L' : item.unit === 'pc' ? '/pc' : '/' + item.unit"></span>
               </div>
 
-              <!-- Middle: Product Name -->
-              <div class="my-1.5">
-                <p class="text-sm font-extrabold text-white group-hover:text-amber-300 transition-colors line-clamp-1 leading-snug" x-text="item.name"></p>
-              </div>
-
-              <!-- Bottom Row: Price -->
-              <div class="flex items-center justify-between w-full pt-1.5 border-t border-white/10">
-                <span class="text-base font-extrabold text-emerald-300 font-mono drop-shadow-sm" x-text="formatPrice(item.selling_price)"></span>
-                <span class="w-6 h-6 rounded-lg bg-emerald-500/20 group-hover:bg-emerald-500 text-emerald-300 group-hover:text-slate-950 flex items-center justify-center text-xs font-bold transition-all">
+              <!-- Price Row -->
+              <div class="flex items-center justify-between w-full mt-auto pt-2">
+                <span class="text-xl font-extrabold text-emerald-300 font-mono tracking-tight" x-text="formatPrice(item.selling_price)"></span>
+                <span class="w-7 h-7 rounded-lg bg-emerald-500/20 group-hover:bg-emerald-500 text-emerald-300 group-hover:text-slate-950 flex items-center justify-center text-sm font-bold transition-all">
                   +
                 </span>
               </div>
@@ -268,25 +264,25 @@
       <div class="grid grid-cols-3 gap-2 flex-shrink-0">
         <button
           @click="openGcashModal('GCASH_IN')"
-          class="flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs text-white bg-blue-700 border-2 border-blue-600 hover:bg-blue-600 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] cursor-pointer active:translate-x-[1px] active:translate-y-[1px] transition-all"
+          class="flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs text-blue-200 bg-blue-600/20 border border-blue-500/30 hover:bg-blue-600/35 hover:border-blue-400 hover:text-white transition-all cursor-pointer"
         >
-          <span>📥</span>
+          <span class="text-sm">📥</span>
           <span>GCash In</span>
         </button>
         <button
           @click="openGcashModal('GCASH_OUT')"
-          class="flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs text-white bg-indigo-700 border-2 border-indigo-600 hover:bg-indigo-600 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] cursor-pointer active:translate-x-[1px] active:translate-y-[1px] transition-all"
+          class="flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs text-indigo-200 bg-indigo-600/20 border border-indigo-500/30 hover:bg-indigo-600/35 hover:border-indigo-400 hover:text-white transition-all cursor-pointer"
         >
-          <span>📤</span>
+          <span class="text-sm">📤</span>
           <span>GCash Out</span>
         </button>
         <button
           @click="openDebtLedgerModal()"
-          class="flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs text-amber-300 bg-amber-950/80 border-2 border-amber-500/60 hover:bg-amber-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] cursor-pointer active:translate-x-[1px] active:translate-y-[1px] transition-all"
+          class="flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs text-amber-200 bg-amber-600/20 border border-amber-500/30 hover:bg-amber-600/35 hover:border-amber-400 hover:text-white transition-all cursor-pointer"
         >
-          <span>📝</span>
+          <span class="text-sm">📝</span>
           <span>Utang Ledger</span>
-          <span class="kbd-brutalist text-[9px]">F7</span>
+          <span class="kbd text-[9px] text-amber-300 border-amber-500/40 bg-amber-950/40">F7</span>
         </button>
       </div>
 
@@ -360,6 +356,9 @@
                   <template x-if="item.pack_label">
                     <span class="text-[10px] font-bold text-amber-300 bg-amber-500/20 px-1.5 py-0.2 rounded border border-amber-500/30" x-text="item.pack_label"></span>
                   </template>
+                  <template x-if="item.stock_qty != null && item.stock_qty <= (item.low_stock_threshold || 5)">
+                    <span class="text-[9px] font-extrabold text-red-400 bg-red-500/20 px-1.5 py-0.2 rounded border border-red-500/30" title="Low Stock Warning">⚠️ LOW STOCK</span>
+                  </template>
                 </div>
                 <div class="flex items-center gap-2 mt-0.5">
                   <!-- Quantity (click to edit) -->
@@ -430,15 +429,15 @@
           <div class="grid grid-cols-3 gap-2 pt-1">
             <button @click="clearCart()"
                     :disabled="cart.length === 0"
-                    class="py-2.5 rounded-xl text-xs font-extrabold text-slate-300 bg-slate-800 border-2 border-slate-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] hover:border-red-400 hover:text-red-400 active:translate-x-[1px] active:translate-y-[1px] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">
+                    class="py-2.5 rounded-xl text-xs font-bold text-slate-300 bg-slate-800/80 border border-slate-700/80 hover:bg-red-500/20 hover:border-red-500/40 hover:text-red-400 active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">
               🗑️ Clear
             </button>
             <button @click="openGcashModal('INCOME')"
-                    class="py-2.5 rounded-xl text-xs font-extrabold text-slate-300 bg-slate-800 border-2 border-slate-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] hover:border-blue-400 hover:text-blue-400 active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer">
+                    class="py-2.5 rounded-xl text-xs font-bold text-slate-300 bg-slate-800/80 border border-slate-700/80 hover:bg-blue-500/20 hover:border-blue-500/40 hover:text-blue-300 active:scale-[0.98] transition-all cursor-pointer">
               📱 GCash
             </button>
             <button @click="printZReport()"
-                    class="py-2.5 rounded-xl text-xs font-extrabold text-slate-300 bg-slate-800 border-2 border-slate-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)] hover:border-amber-400 hover:text-amber-400 active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer">
+                    class="py-2.5 rounded-xl text-xs font-bold text-slate-300 bg-slate-800/80 border border-slate-700/80 hover:bg-amber-500/20 hover:border-amber-500/40 hover:text-amber-300 active:scale-[0.98] transition-all cursor-pointer">
               📊 Z-Report
             </button>
           </div>
@@ -655,7 +654,7 @@
             <div class="w-full h-full relative">
               <img :src="receiptImage" class="w-full h-full object-cover rounded-xl animate-fade">
               <div class="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl">
-                <span class="bg-emerald-500 text-white rounded-full px-3 py-1.5 font-bold shadow text-xs flex items-center gap-1">
+                <span class="bg-emerald-600 text-white rounded-xl px-3.5 py-1.5 font-extrabold shadow border border-emerald-400 text-xs flex items-center gap-1">
                   ✓ Receipt Captured
                 </span>
               </div>
@@ -664,12 +663,12 @@
 
           <!-- Floating Snapshot trigger button -->
           <div x-show="!receiptImage" class="absolute bottom-2">
-            <button @click="captureSnapshot()" class="bg-blue-600 hover:bg-blue-500 text-white rounded-full px-4 py-1.5 text-xs font-bold shadow-lg shadow-blue-500/20 active:scale-95 transition-all cursor-pointer">
+            <button @click="captureSnapshot()" class="bg-blue-600 hover:bg-blue-500 text-white rounded-xl px-4 py-2 text-xs font-extrabold shadow-lg shadow-blue-500/20 active:scale-95 transition-all cursor-pointer border border-blue-400">
               📸 Capture Receipt
             </button>
           </div>
           <div x-show="receiptImage" class="absolute bottom-2">
-            <button @click="receiptImage = null; startCamera()" class="bg-slate-800 hover:bg-slate-700 text-white rounded-full px-4 py-1.5 text-xs font-bold shadow border border-slate-700 active:scale-95 transition-all cursor-pointer">
+            <button @click="receiptImage = null; startCamera()" class="bg-slate-800 hover:bg-slate-700 text-white rounded-xl px-4 py-2 text-xs font-extrabold shadow border border-slate-700 active:scale-95 transition-all cursor-pointer">
               🔄 Retake Photo
             </button>
           </div>
@@ -780,17 +779,17 @@
        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md"
        style="display: none;">
 
-    <div class="bg-slate-900 border-2 border-slate-700 rounded-3xl w-full max-w-2xl shadow-[10px_10px_0px_0px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col">
       <!-- Header -->
-      <div class="bg-slate-950 px-6 py-4 border-b-2 border-slate-800 flex items-center justify-between">
+      <div class="bg-slate-950 px-6 py-4 border-b border-slate-800 flex items-center justify-between">
         <div>
-          <span class="text-xs font-black text-slate-400 uppercase tracking-wider block">Total Amount Due</span>
-          <span class="text-4xl font-black text-emerald-400 mt-0.5 font-mono tracking-tight block" x-text="formatPrice(total)"></span>
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Amount Due</span>
+          <span class="text-4xl font-extrabold text-emerald-400 mt-0.5 font-mono tracking-tight block" x-text="formatPrice(total)"></span>
         </div>
         <div class="flex items-center gap-3">
-          <span class="px-3.5 py-1.5 rounded-xl bg-slate-800 text-xs font-black text-white border-2 border-slate-700 shadow"
+          <span class="px-3.5 py-1.5 rounded-xl bg-slate-800 text-xs font-bold text-slate-200 border border-slate-700"
                 x-text="totalItems + ' item' + (totalItems > 1 ? 's' : '')"></span>
-          <button @click="showPaymentModal = false; focusSmartInput()" class="text-slate-400 hover:text-white text-2xl p-1 font-black cursor-pointer transition-colors">✕</button>
+          <button @click="showPaymentModal = false; focusSmartInput()" class="text-slate-400 hover:text-white text-2xl p-1 font-bold cursor-pointer transition-colors">✕</button>
         </div>
       </div>
 
@@ -1021,21 +1020,21 @@
        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md"
        style="display: none;">
 
-    <div class="bg-slate-900 border-2 border-emerald-500 rounded-3xl w-full max-w-md shadow-[8px_8px_0px_0px_rgba(16,185,129,0.3)] p-6 text-center space-y-5">
+    <div class="bg-slate-900 border border-emerald-500/40 rounded-2xl w-full max-w-md shadow-2xl p-6 text-center space-y-5">
       <!-- Success Icon -->
-      <div class="w-20 h-20 bg-emerald-500 text-slate-950 rounded-2xl flex items-center justify-center text-4xl font-extrabold mx-auto border-2 border-emerald-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.6)]">
+      <div class="w-16 h-16 bg-emerald-500 text-slate-950 rounded-2xl flex items-center justify-center text-3xl font-extrabold mx-auto shadow-lg shadow-emerald-500/30">
         ✓
       </div>
 
       <div>
-        <h2 class="text-2xl font-extrabold text-white tracking-tight">Transaction Completed!</h2>
+        <h2 class="text-2xl font-bold text-white tracking-tight">Transaction Completed!</h2>
         <p class="text-xs font-semibold text-emerald-400 mt-1 font-mono uppercase tracking-wider">Inventory & Sales Logged</p>
       </div>
 
       <!-- Change Due Display -->
-      <div class="bg-emerald-950 border-2 border-emerald-500/60 rounded-2xl p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)]">
-        <div class="text-xs font-extrabold text-emerald-400 uppercase tracking-widest mb-1">CHANGE TO GIVE CUSTOMER</div>
-        <div class="text-5xl font-extrabold text-emerald-300 font-mono tracking-tight" x-text="formatPrice(lastSaleDetails.change)"></div>
+      <div class="bg-emerald-950/70 border border-emerald-500/30 rounded-xl p-4 shadow-inner">
+        <div class="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-1">CHANGE TO GIVE CUSTOMER</div>
+        <div class="text-4xl font-extrabold text-emerald-300 font-mono tracking-tight" x-text="formatPrice(lastSaleDetails.change)"></div>
         <div class="text-xs text-slate-300 mt-3 flex justify-center gap-4 border-t border-emerald-800/60 pt-2.5">
           <span>Tendered: <b class="text-white font-mono" x-text="formatPrice(lastSaleDetails.tendered)"></b></span>
           <span>Total: <b class="text-white font-mono" x-text="formatPrice(lastSaleDetails.total)"></b></span>
@@ -1045,9 +1044,9 @@
       <!-- Action Buttons -->
       <div class="space-y-2 pt-2">
         <button @click="closeSuccessModal()"
-                class="w-full btn-brutalist-emerald py-3.5 text-white font-extrabold text-base rounded-xl flex items-center justify-center gap-2 cursor-pointer">
+                class="w-full py-3.5 rounded-xl text-white font-bold text-sm bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer">
           <span>⚡ NEXT CUSTOMER SALE</span>
-          <span class="kbd-brutalist text-xs">Enter / Esc</span>
+          <span class="kbd text-[9px] text-emerald-300 border-emerald-500/40 bg-emerald-950/40">Enter / Esc</span>
         </button>
 
         <div class="flex items-center justify-between px-2 pt-1 text-xs text-slate-400">
@@ -1075,15 +1074,15 @@
        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md"
        style="display: none;">
 
-    <div class="bg-slate-900 border-2 border-amber-500/80 rounded-3xl w-full max-w-4xl min-h-[480px] max-h-[90vh] shadow-[8px_8px_0px_0px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
+    <div class="bg-slate-900 border border-amber-500/30 rounded-2xl w-full max-w-4xl min-h-[480px] max-h-[90vh] shadow-2xl overflow-hidden flex flex-col">
       <!-- Header -->
-      <div class="bg-slate-950 px-6 py-4 border-b-2 border-slate-800 flex items-center justify-between">
+      <div class="bg-slate-950 px-6 py-4 border-b border-slate-800 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-xl font-bold">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-xl font-bold">
             📝
           </div>
           <div>
-            <h2 class="text-xl font-extrabold text-white tracking-tight">Customer Utang Ledger</h2>
+            <h2 class="text-xl font-bold text-white tracking-tight">Customer Utang Ledger</h2>
             <p class="text-xs text-amber-400 font-mono font-semibold">Store Credit Accounts & Repayments</p>
           </div>
         </div>
@@ -1097,21 +1096,21 @@
                  x-model="debtSearchQuery"
                  @input.debounce.200ms="loadDebtList()"
                  placeholder="Search customer name..."
-                 class="flex-1 px-4 py-3 bg-slate-950 border-2 border-slate-700 rounded-xl text-white font-semibold text-sm focus:border-amber-400 focus:outline-none min-w-[200px]">
+                 class="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white font-medium text-sm focus:border-amber-400 focus:outline-none min-w-[200px]">
           <button @click="showAddCustomerModal = true; newCustomerName = ''; newCustomerPhone = ''; newCustomerInitialDebt = ''"
-                  class="px-4 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs rounded-xl border border-amber-300 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.4)] active:translate-x-[1px] active:translate-y-[1px] transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
+                  class="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-md active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
             <span>➕</span>
             <span>Add Customer Account</span>
           </button>
-          <button @click="loadDebtList()" class="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700 cursor-pointer whitespace-nowrap">
+          <button @click="loadDebtList()" class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs rounded-xl border border-slate-700 cursor-pointer whitespace-nowrap">
             🔄 Refresh
           </button>
         </div>
 
         <!-- Debt Accounts Table -->
-        <div class="border-2 border-slate-800 rounded-2xl overflow-hidden bg-slate-950 flex-1">
+        <div class="border border-slate-800 rounded-xl overflow-hidden bg-slate-950 flex-1">
           <table class="w-full text-left text-xs text-slate-300">
-            <thead class="bg-slate-900 text-slate-400 uppercase font-extrabold border-b-2 border-slate-800 text-[10px] tracking-wider">
+            <thead class="bg-slate-900 text-slate-400 uppercase font-bold border-b border-slate-800 text-[10px] tracking-wider">
               <tr>
                 <th class="px-5 py-3.5">Customer Name</th>
                 <th class="px-5 py-3.5 text-right">Outstanding Debt</th>
@@ -1129,15 +1128,15 @@
               </template>
               <template x-for="customer in debtCustomers" :key="customer.id">
                 <tr class="hover:bg-slate-900/80 transition-all">
-                  <td class="px-5 py-4 font-extrabold text-white text-sm" x-text="customer.customer_name"></td>
-                  <td class="px-5 py-4 text-right font-mono font-extrabold text-base"
+                  <td class="px-5 py-4 font-bold text-white text-sm" x-text="customer.customer_name"></td>
+                  <td class="px-5 py-4 text-right font-mono font-bold text-base"
                       :class="customer.total_debt > 0 ? 'text-amber-400' : 'text-emerald-400'"
                       x-text="formatPrice(customer.total_debt)"></td>
                   <td class="px-5 py-4 text-center text-slate-400 font-mono text-[11px]" x-text="new Date(customer.updated_at).toLocaleDateString()"></td>
                   <td class="px-5 py-4 text-right whitespace-nowrap">
                     <button @click="openRepaymentModal(customer)"
                             :disabled="customer.total_debt <= 0"
-                            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs border border-emerald-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.4)] active:translate-x-[1px] active:translate-y-[1px] transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">
+                            class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">
                       💵 Pay Debt
                     </button>
                   </td>
@@ -1157,18 +1156,18 @@
        x-transition:enter-end="opacity-100 scale-100"
        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md"
        style="display: none;">
-    <div class="bg-slate-900 border-2 border-amber-500 rounded-3xl w-full max-w-md p-6 space-y-5 shadow-2xl">
+    <div class="bg-slate-900 border border-amber-500/40 rounded-2xl w-full max-w-md p-6 space-y-5 shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div class="flex items-center gap-2.5">
           <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
             ➕
           </div>
           <div>
-            <h3 class="text-lg font-extrabold text-white">Create Debt Account</h3>
+            <h3 class="text-lg font-bold text-white">Create Debt Account</h3>
             <p class="text-xs text-amber-400 font-mono">Register new Utang customer</p>
           </div>
         </div>
-        <button @click="showAddCustomerModal = false" class="text-slate-400 hover:text-white font-bold text-lg">✕</button>
+        <button @click="showAddCustomerModal = false" class="text-slate-400 hover:text-white font-bold text-lg cursor-pointer">✕</button>
       </div>
 
       <div class="space-y-4">
@@ -1177,7 +1176,7 @@
           <input type="text"
                  x-model="newCustomerName"
                  placeholder="e.g. Aling Nena, Cardo, Mang Pedro..."
-                 class="w-full px-4 py-3 bg-slate-950 border-2 border-slate-700 rounded-xl text-white font-extrabold text-base focus:border-amber-400 focus:outline-none">
+                 class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-base focus:border-amber-400 focus:outline-none">
         </div>
 
         <div>
@@ -1185,7 +1184,7 @@
           <input type="text"
                  x-model="newCustomerPhone"
                  placeholder="09171234567"
-                 class="w-full px-4 py-2.5 bg-slate-950 border-2 border-slate-700 rounded-xl text-white font-mono text-sm focus:border-amber-400 focus:outline-none">
+                 class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm focus:border-amber-400 focus:outline-none">
         </div>
 
         <div>
@@ -1195,13 +1194,13 @@
                  min="0"
                  x-model.number="newCustomerInitialDebt"
                  placeholder="0.00"
-                 class="w-full px-4 py-2.5 bg-slate-950 border-2 border-slate-700 rounded-xl text-white font-mono text-sm text-right focus:border-amber-400 focus:outline-none">
+                 class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-sm text-right focus:border-amber-400 focus:outline-none">
         </div>
       </div>
 
       <button @click="createNewCustomerAccount()"
               :disabled="isProcessing || !newCustomerName.trim()"
-              class="w-full py-4 rounded-2xl font-extrabold text-base text-slate-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 border-2 border-amber-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.6)] cursor-pointer disabled:opacity-40">
+              class="w-full py-3.5 rounded-xl font-bold text-sm text-slate-950 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-40">
         ✓ REGISTER CUSTOMER ACCOUNT
       </button>
     </div>
@@ -1214,18 +1213,18 @@
        x-transition:enter-end="opacity-100 scale-100"
        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md"
        style="display: none;">
-    <div class="bg-slate-900 border-2 border-emerald-500 rounded-3xl w-full max-w-md p-6 space-y-5 shadow-2xl">
+    <div class="bg-slate-900 border border-emerald-500/40 rounded-2xl w-full max-w-md p-6 space-y-5 shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div>
           <div class="text-xs text-emerald-400 font-bold uppercase tracking-wider">Record Debt Payment</div>
-          <div class="text-xl font-extrabold text-white mt-0.5" x-text="selectedDebtCustomer?.customer_name"></div>
+          <div class="text-xl font-bold text-white mt-0.5" x-text="selectedDebtCustomer?.customer_name"></div>
         </div>
-        <button @click="showRepaymentModal = false" class="text-slate-400 hover:text-white font-bold">✕</button>
+        <button @click="showRepaymentModal = false" class="text-slate-400 hover:text-white font-bold cursor-pointer">✕</button>
       </div>
 
-      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 flex justify-between items-center">
+      <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
         <span class="text-xs text-slate-400 font-bold uppercase">Current Outstanding Debt:</span>
-        <span class="text-2xl font-extrabold text-amber-400 font-mono" x-text="formatPrice(selectedDebtCustomer?.total_debt)"></span>
+        <span class="text-2xl font-bold text-amber-400 font-mono" x-text="formatPrice(selectedDebtCustomer?.total_debt)"></span>
       </div>
 
       <div>
@@ -1235,12 +1234,12 @@
                min="0.01"
                x-model.number="repaymentAmount"
                placeholder="0.00"
-               class="w-full px-4 py-3 bg-slate-950 border-2 border-slate-700 rounded-xl text-white font-extrabold text-2xl text-right font-mono focus:border-emerald-400 focus:outline-none">
+               class="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold text-xl text-right font-mono focus:border-emerald-400 focus:outline-none">
       </div>
 
       <button @click="processDebtRepayment()"
               :disabled="isProcessing || !repaymentAmount || repaymentAmount <= 0"
-              class="w-full btn-brutalist-emerald py-4 rounded-2xl font-extrabold text-base text-white cursor-pointer disabled:opacity-40">
+              class="w-full py-3.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-40">
         ✓ RECEIVE PAYMENT & UPDATE BALANCE
       </button>
     </div>

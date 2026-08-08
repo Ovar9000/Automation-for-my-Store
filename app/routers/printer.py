@@ -185,6 +185,17 @@ async def print_z_report(db=Depends(get_db)):
     gcash_sale_row = await cursor.fetchone()
     total_gcash_sales = round(dict(gcash_sale_row)["total"], 2)
 
+    # ── Query Utang sales for today ──────────────────────────────────
+    cursor = await db.execute(
+        """SELECT COALESCE(SUM(total_amount), 0) as total
+           FROM transactions
+           WHERE date(created_at, 'localtime') = date('now', 'localtime')
+             AND transaction_type = 'SALE'
+             AND payment_method = 'UTANG'"""
+    )
+    utang_sale_row = await cursor.fetchone()
+    total_utang_sales = round(dict(utang_sale_row)["total"], 2)
+
     # ── Query GCash fee income for today ─────────────────────────────
     # This is pure income from GCash cash-in/cash-out services
     cursor = await db.execute(
@@ -210,8 +221,8 @@ async def print_z_report(db=Depends(get_db)):
     transaction_count = dict(count_row)["count"]
 
     # ── Calculate grand total ────────────────────────────────────────
-    # Grand total = cash sales + GCash sales + GCash fees
-    grand_total = round(total_cash_sales + total_gcash_sales + total_gcash_fees, 2)
+    # Grand total = cash sales + GCash sales + Utang sales + GCash fees
+    grand_total = round(total_cash_sales + total_gcash_sales + total_utang_sales + total_gcash_fees, 2)
 
     # ── Load store name for the receipt header ───────────────────────
     cursor = await db.execute(
@@ -226,6 +237,7 @@ async def print_z_report(db=Depends(get_db)):
         date=today_str,
         total_cash_sales=total_cash_sales,
         total_gcash_sales=total_gcash_sales,
+        total_utang_sales=total_utang_sales,
         total_gcash_fees=total_gcash_fees,
         grand_total=grand_total,
         transaction_count=transaction_count,
@@ -242,6 +254,7 @@ async def print_z_report(db=Depends(get_db)):
         "summary": {
             "total_cash_sales": total_cash_sales,
             "total_gcash_sales": total_gcash_sales,
+            "total_utang_sales": total_utang_sales,
             "total_gcash_fees": total_gcash_fees,
             "grand_total": grand_total,
             "transaction_count": transaction_count,

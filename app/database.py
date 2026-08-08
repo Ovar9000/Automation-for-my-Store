@@ -222,6 +222,22 @@ async def init_db():
             await db.execute("ALTER TABLE gcash_transactions ADD COLUMN gcash_timestamp TEXT")
         except Exception:
             pass
+        try:
+            await db.execute("ALTER TABLE transactions ADD COLUMN receipt_number TEXT")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE transactions ADD COLUMN notes TEXT")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE transactions ADD COLUMN amount_tendered REAL DEFAULT 0")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE transactions ADD COLUMN change_amount REAL DEFAULT 0")
+        except Exception:
+            pass
 
         # ── Insert default settings if not present ──
         for key, value in DEFAULT_SETTINGS.items():

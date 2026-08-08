@@ -183,6 +183,10 @@ function cashierApp() {
           subtotal: Math.round(quantity * product.selling_price * 100) / 100,
           pcs_per_pack: product.pcs_per_pack || 12,
           full_pack_price: product.full_pack_price || null,
+          half_dozen_price: product.half_dozen_price || null,
+          dozen_price: product.dozen_price || null,
+          stock_qty: product.stock_qty,
+          low_stock_threshold: product.low_stock_threshold,
           pack_label: null
         });
       }
@@ -215,28 +219,32 @@ function cashierApp() {
       const item = this.cart.find(i => i.product_id === this.lastScannedProduct.id);
       if (!item) return;
 
-      const packSize = this.lastScannedProduct.pcs_per_pack || 12;
+      const packSize = this.lastScannedProduct.pcs_per_pack || 10;
       const halfQty = Math.max(1, Math.round(packSize / 2));
       const fullQty = packSize;
 
       if (packType === 'half') {
         item.quantity = halfQty;
-        if (item.full_pack_price) {
+        if (item.half_dozen_price) {
+          item.subtotal = Math.round(item.half_dozen_price * 100) / 100;
+        } else if (item.full_pack_price) {
           item.subtotal = Math.round((item.full_pack_price / 2) * 100) / 100;
         } else {
           item.subtotal = Math.round(halfQty * item.unit_price * 100) / 100;
         }
         item.pack_label = `Half-Pack (${halfQty}pcs)`;
-        this.showNotification(`✓ ${item.product_name} converted to Half-Pack (${halfQty}pcs) — ₱${item.subtotal.toFixed(2)}`, 'success');
+        this.showNotification(`✓ ${item.product_name} set to Half-Pack (${halfQty}pcs) — ₱${item.subtotal.toFixed(2)}`, 'success');
       } else if (packType === 'dozen' || packType === 'full') {
         item.quantity = fullQty;
         if (item.full_pack_price) {
           item.subtotal = Math.round(item.full_pack_price * 100) / 100;
+        } else if (item.dozen_price) {
+          item.subtotal = Math.round(item.dozen_price * 100) / 100;
         } else {
           item.subtotal = Math.round(fullQty * item.unit_price * 100) / 100;
         }
         item.pack_label = `Full-Pack (${fullQty}pcs)`;
-        this.showNotification(`✓ ${item.product_name} converted to Full-Pack (${fullQty}pcs) — ₱${item.subtotal.toFixed(2)}`, 'success');
+        this.showNotification(`✓ ${item.product_name} set to Full Pack (${fullQty}pcs) — ₱${item.subtotal.toFixed(2)}`, 'success');
       }
 
       this.showBundleBanner = false;
@@ -512,6 +520,10 @@ function cashierApp() {
     // ── Quick Denomination ───────────────────────────────────
     setDenomination(amount) {
       this.amountTendered = String(amount);
+    },
+
+    setExactTendered() {
+      this.amountTendered = String(this.total);
     },
 
     addDenomination(amount) {
