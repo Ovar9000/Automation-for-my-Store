@@ -11,14 +11,27 @@
 }
 
 html, body {
-  height: 100%;
-  overflow: hidden;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background: radial-gradient(circle at top right, #111827 0%, #090d16 60%, #030712 100%);
-  color: #f1f5f9;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* ── Cashier Mode (Dark Theme Terminal) ─────────────────────── */
+body.cashier-mode {
+  height: 100vh;
+  overflow: hidden;
+  background: radial-gradient(circle at top right, #111827 0%, #090d16 60%, #030712 100%);
+  color: #f1f5f9;
+}
+
+/* ── Admin Layout (Light Theme) ─────────────────────────────── */
+body.admin-layout {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  color: #1e293b;
+}
+
+
 
 /* ── Glassmorphism & Brutalist Panels ───────────────────────── */
 .glass {

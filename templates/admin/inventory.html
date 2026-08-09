@@ -1,26 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Inventory Management - Sari-Sari Store POS</title>
-  <!-- Tailwind CSS v4 CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Alpine.js v3 CDN -->
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
-  <!-- Google Fonts: Inter -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/custom.css">
+{% extends "admin/base.html" %}
+
+{% block title %}Inventory Management - Sari-Sari Store POS{% endblock %}
+{% block alpine_app %}x-data="inventoryApp()"{% endblock %}
+
+{% block extra_head %}
   <script src="/static/js/inventory.js"></script>
   <style>
-    /* ── Admin-specific overrides (light theme) ─────────────── */
-    html, body {
-      height: auto;
-      overflow: auto;
-      background: #f8fafc;
-      color: #1e293b;
-    }
-
     /* ── Scan & Quick Price Animations ──────────────────────── */
     @keyframes scanPulseLight {
       0%, 100% {
@@ -125,52 +110,9 @@
       border: 1px solid rgba(59, 130, 246, 0.2);
     }
   </style>
-</head>
-<body class="bg-slate-50 font-sans min-h-screen antialiased flex flex-col" x-data="inventoryApp()">
+{% endblock %}
 
-  <!-- Top Nav Bar -->
-  <nav class="bg-white border-b border-slate-100 sticky top-0 z-50 shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between h-16">
-        <div class="flex items-center gap-8">
-          <div class="flex-shrink-0 flex items-center gap-2 font-bold text-slate-800 text-lg">
-            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
-                <path fill-rule="evenodd" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" clip-rule="evenodd" />
-              </svg>
-            </div>
-            Sari-Sari Store Admin
-          </div>
-          <div class="hidden md:flex space-x-4">
-            <a href="/admin/dashboard" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 border-b-2 px-3 py-2 text-sm font-semibold flex items-center gap-2">
-              Dashboard
-            </a>
-            <a href="/admin/inventory" class="border-blue-500 text-blue-600 border-b-2 px-3 py-2 text-sm font-semibold flex items-center gap-2">
-              Inventory
-            </a>
-            <a href="/admin/gcash" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 border-b-2 px-3 py-2 text-sm font-semibold flex items-center gap-2">
-              GCash Services
-            </a>
-            <a href="/admin/reports" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 border-b-2 px-3 py-2 text-sm font-semibold flex items-center gap-2">
-              Reports
-            </a>
-          </div>
-        </div>
-        <div class="flex items-center gap-4">
-          <a href="/" class="text-slate-500 hover:text-slate-700 text-sm font-semibold px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-            Cashier Mode
-          </a>
-          <button @click="logout()" class="text-red-500 hover:text-red-700 text-sm font-semibold px-3 py-2 rounded-lg hover:bg-red-50 transition-colors">
-            Logout
-          </button>
-        </div>
-      </div>
-    </div>
-  </nav>
-
-  <!-- Main Content -->
-  <main class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-
+{% block content %}
     <!-- Header Section -->
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
       <div>
@@ -515,177 +457,173 @@
       </div>
     </div>
 
-  </main>
-
-  <!-- Add/Edit Product Modal -->
-  <div x-show="showModal" 
-       class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 modal-backdrop"
-       style="display: none;"
-       x-transition:enter="transition ease-out duration-200"
-       x-transition:enter-start="opacity-0"
-       x-transition:enter-end="opacity-100">
-    
-    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-100"
-         @click.away="showModal = false"
-         x-transition:enter="transition ease-out duration-300"
-         x-transition:enter-start="scale-95 translate-y-4"
-         x-transition:enter-end="scale-100 translate-y-0">
+    <!-- Add/Edit Product Modal -->
+    <div x-show="showModal" 
+         class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 modal-backdrop"
+         style="display: none;"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100">
       
-      <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-        <h3 class="font-extrabold text-lg text-slate-800" x-text="isEditing ? 'Edit Product Details' : 'Add New Product'"></h3>
-        <button @click="showModal = false" class="text-slate-400 hover:text-slate-600">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
-            <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-          </svg>
-        </button>
-      </div>
-
-      <form @submit.prevent="saveProduct()" class="p-6 space-y-4">
+      <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-100"
+           @click.away="showModal = false"
+           x-transition:enter="transition ease-out duration-300"
+           x-transition:enter-start="scale-95 translate-y-4"
+           x-transition:enter-end="scale-100 translate-y-0">
         
-        <div class="grid grid-cols-2 gap-4">
-          <div class="col-span-2">
-            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Product Name *</label>
-            <input type="text" id="form-name" x-model="form.name" required placeholder="e.g. Piattos Cheese 85g" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-700">
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Category</label>
-            <input type="text" x-model="form.category" placeholder="General" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-700">
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Unit of Measure</label>
-            <select x-model="form.unit" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-700">
-              <option value="pc">Pieces (pc)</option>
-              <option value="kg">Kilograms (kg)</option>
-              <option value="L">Liters (L)</option>
-              <option value="ml">Milliliters (ml)</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Cost Price (₱)</label>
-            <input type="number" step="0.01" min="0" x-model.number="form.cost_price" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-700 text-right font-bold">
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Selling Price (1pc) *</label>
-            <input type="number" step="0.01" min="0.01" x-model.number="form.selling_price" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-700 text-right font-bold">
-          </div>
-
-          <!-- BULK PACK / TIE COST CALCULATOR SECTION -->
-          <div class="col-span-2 bg-blue-50/70 p-3.5 rounded-xl border border-blue-200/80 space-y-3">
-            <div class="flex items-center justify-between">
-              <div class="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
-                <span>📦 Bulk Pack / Tie Helper (No Mental Math!)</span>
-              </div>
-              <span class="text-[10px] text-blue-700 bg-blue-100 font-semibold px-2 py-0.5 rounded">Auto Calculates Cost per Piece</span>
-            </div>
-
-            <div class="grid grid-cols-3 gap-3">
-              <div>
-                <label class="block text-[10px] font-bold text-slate-600 mb-1">Pcs per Pack/Tie</label>
-                <input type="number" min="1" step="1" x-model.number="form.pcs_per_pack" @input="calculateBulkCost()" placeholder="e.g. 10" class="w-full px-2.5 py-2 bg-white border border-blue-200 rounded-lg text-xs font-bold text-slate-800 text-center">
-              </div>
-              <div>
-                <label class="block text-[10px] font-bold text-slate-600 mb-1">Bulk Pack Cost (₱)</label>
-                <input type="number" min="0" step="0.01" x-model.number="form.bulk_cost_price" @input="calculateBulkCost()" placeholder="e.g. 100.00" class="w-full px-2.5 py-2 bg-white border border-blue-200 rounded-lg text-xs font-bold text-slate-800 text-right font-mono">
-              </div>
-              <div>
-                <label class="block text-[10px] font-bold text-slate-600 mb-1">Full Pack Selling (₱)</label>
-                <input type="number" min="0" step="0.01" x-model.number="form.full_pack_price" placeholder="Auto" class="w-full px-2.5 py-2 bg-white border border-blue-200 rounded-lg text-xs font-bold text-slate-800 text-right font-mono">
-              </div>
-            </div>
-            <div class="text-[11px] text-blue-800 flex items-center justify-between px-1">
-              <span>Cost price per pc: <b class="font-mono text-slate-900" x-text="formatCurrency(form.cost_price)"></b></span>
-              <span x-show="form.full_pack_price > 0">Half pack selling price: <b class="font-mono text-slate-900" x-text="formatCurrency((form.full_pack_price || 0) / 2)"></b></span>
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Stock Quantity</label>
-            <input type="number" step="0.001" x-model.number="form.stock_qty" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-700 text-right">
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Low-Stock Alert</label>
-            <input type="number" step="0.001" x-model.number="form.low_stock_threshold" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-700 text-right">
-          </div>
-
-          <!-- BARCODE FIELD (LAST STEP — SCANNING AUTO-SAVES!) -->
-          <div class="col-span-2 bg-blue-50/70 p-3 rounded-xl border border-blue-100">
-            <div class="flex items-center justify-between mb-1.5">
-              <label class="block text-xs font-bold text-blue-800 uppercase tracking-wider">
-                📷 Barcode (Scan Last to Auto-Save!)
-              </label>
-              <span class="text-[10px] text-blue-600 font-semibold bg-blue-100 px-2 py-0.5 rounded-md">Reader Auto-Saves on Scan</span>
-            </div>
-            <input type="text" id="form-barcode" x-model="form.barcode" placeholder="Scan barcode with reader or type manually..." class="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 font-mono font-bold tracking-wider">
-          </div>
-
-          <div class="flex items-center gap-2 mt-2 col-span-2">
-            <input type="checkbox" id="is_quick" x-model="form.is_quick_item" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300">
-            <label for="is_quick" class="text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer">Show as Quick Button on Cashier Screen</label>
-          </div>
-
-          <div x-show="form.is_quick_item" class="col-span-2" x-transition>
-            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Button Background Color</label>
-            <div class="flex items-center gap-3">
-              <input type="color" x-model="form.quick_button_color" class="w-10 h-10 border-0 p-0 rounded-lg cursor-pointer">
-              <span class="text-xs text-slate-400 font-mono" x-text="form.quick_button_color"></span>
-            </div>
-          </div>
-
+        <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+          <h3 class="font-extrabold text-lg text-slate-800" x-text="isEditing ? 'Edit Product Details' : 'Add New Product'"></h3>
+          <button @click="showModal = false" class="text-slate-400 hover:text-slate-600">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+              <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+            </svg>
+          </button>
         </div>
 
-        <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
-          <button type="button" @click="showModal = false" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
+        <form @submit.prevent="saveProduct()" class="p-6 space-y-4">
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div class="col-span-2">
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Product Name *</label>
+              <input type="text" id="form-name" x-model="form.name" required placeholder="e.g. Piattos Cheese 85g" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-700">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Category</label>
+              <input type="text" x-model="form.category" placeholder="General" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-700">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Unit of Measure</label>
+              <select x-model="form.unit" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-700">
+                <option value="pc">Pieces (pc)</option>
+                <option value="kg">Kilograms (kg)</option>
+                <option value="L">Liters (L)</option>
+                <option value="ml">Milliliters (ml)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Cost Price (₱)</label>
+              <input type="number" step="0.01" min="0" x-model.number="form.cost_price" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-700 text-right font-bold">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Selling Price (1pc) *</label>
+              <input type="number" step="0.01" min="0.01" x-model.number="form.selling_price" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-700 text-right font-bold">
+            </div>
+
+            <!-- BULK PACK / TIE COST CALCULATOR SECTION -->
+            <div class="col-span-2 bg-blue-50/70 p-3.5 rounded-xl border border-blue-200/80 space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>📦 Bulk Pack / Tie Helper (No Mental Math!)</span>
+                </div>
+                <span class="text-[10px] text-blue-700 bg-blue-100 font-semibold px-2 py-0.5 rounded">Auto Calculates Cost per Piece</span>
+              </div>
+
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-600 mb-1">Pcs per Pack/Tie</label>
+                  <input type="number" min="1" step="1" x-model.number="form.pcs_per_pack" @input="calculateBulkCost()" placeholder="e.g. 10" class="w-full px-2.5 py-2 bg-white border border-blue-200 rounded-lg text-xs font-bold text-slate-800 text-center">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-600 mb-1">Bulk Pack Cost (₱)</label>
+                  <input type="number" min="0" step="0.01" x-model.number="form.bulk_cost_price" @input="calculateBulkCost()" placeholder="e.g. 100.00" class="w-full px-2.5 py-2 bg-white border border-blue-200 rounded-lg text-xs font-bold text-slate-800 text-right font-mono">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold text-slate-600 mb-1">Full Pack Selling (₱)</label>
+                  <input type="number" min="0" step="0.01" x-model.number="form.full_pack_price" placeholder="Auto" class="w-full px-2.5 py-2 bg-white border border-blue-200 rounded-lg text-xs font-bold text-slate-800 text-right font-mono">
+                </div>
+              </div>
+              <div class="text-[11px] text-blue-800 flex items-center justify-between px-1">
+                <span>Cost price per pc: <b class="font-mono text-slate-900" x-text="formatCurrency(form.cost_price)"></b></span>
+                <span x-show="form.full_pack_price > 0">Half pack selling price: <b class="font-mono text-slate-900" x-text="formatCurrency((form.full_pack_price || 0) / 2)"></b></span>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Stock Quantity</label>
+              <input type="number" step="0.001" x-model.number="form.stock_qty" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-700 text-right">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Low-Stock Alert</label>
+              <input type="number" step="0.001" x-model.number="form.low_stock_threshold" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-700 text-right">
+            </div>
+
+            <!-- BARCODE FIELD (LAST STEP — SCANNING AUTO-SAVES!) -->
+            <div class="col-span-2 bg-blue-50/70 p-3 rounded-xl border border-blue-100">
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="block text-xs font-bold text-blue-800 uppercase tracking-wider">
+                  📷 Barcode (Scan Last to Auto-Save!)
+                </label>
+                <span class="text-[10px] text-blue-600 font-semibold bg-blue-100 px-2 py-0.5 rounded-md">Reader Auto-Saves on Scan</span>
+              </div>
+              <input type="text" id="form-barcode" x-model="form.barcode" placeholder="Scan barcode with reader or type manually..." class="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 font-mono font-bold tracking-wider">
+            </div>
+
+            <div class="flex items-center gap-2 mt-2 col-span-2">
+              <input type="checkbox" id="is_quick" x-model="form.is_quick_item" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300">
+              <label for="is_quick" class="text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer">Show as Quick Button on Cashier Screen</label>
+            </div>
+
+            <div x-show="form.is_quick_item" class="col-span-2" x-transition>
+              <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Button Background Color</label>
+              <div class="flex items-center gap-3">
+                <input type="color" x-model="form.quick_button_color" class="w-10 h-10 border-0 p-0 rounded-lg cursor-pointer">
+                <span class="text-xs text-slate-400 font-mono" x-text="form.quick_button_color"></span>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
+            <button type="button" @click="showModal = false" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
+              Cancel
+            </button>
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-xl text-sm shadow-sm transition-colors">
+              Save Product
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+    <!-- Delete Confirm Modal -->
+    <div x-show="showDeleteConfirm" 
+         class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 modal-backdrop"
+         style="display: none;"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100">
+      
+      <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl p-6 border border-slate-100"
+           @click.away="showDeleteConfirm = false"
+           x-transition:enter="transition ease-out duration-300"
+           x-transition:enter-start="scale-95 translate-y-4"
+           x-transition:enter-end="scale-100 translate-y-0">
+        
+        <div class="flex flex-col items-center text-center">
+          <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600 mb-4 shadow-inner">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6">
+              <path fill-rule="evenodd" d="M8.75 3A.75.75 0 0 0 8 3.75V5H4.75a.75.75 0 0 0 0 1.5h.25v9a2.25 2.25 0 0 0 2.25 2.25h5.5A2.25 2.25 0 0 0 15 15.5v-9h.25a.75.75 0 0 0 0-1.5H12V3.75A.75.75 0 0 0 11.25 3h-2.5ZM10 7.5a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-1.5 0v-5.5A.75.75 0 0 1 10 7.5Zm-2.25.75a.75.75 0 0 0-1.5 0v5.5a.75.75 0 0 0 1.5 0v-5.5Zm5.25-.75a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-1.5 0v-5.5a.75.75 0 0 1 .75-.75Z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <h3 class="font-extrabold text-lg text-slate-800 mb-2">Delete Product?</h3>
+          <p class="text-slate-400 text-sm mb-6">Are you sure you want to delete <span class="font-semibold text-slate-700" x-text="deleteTarget?.name"></span>? This action cannot be undone.</p>
+        </div>
+
+        <div class="flex justify-end gap-3">
+          <button @click="showDeleteConfirm = false" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
             Cancel
           </button>
-          <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-xl text-sm shadow-sm transition-colors">
-            Save Product
+          <button @click="deleteProduct()" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2 rounded-xl text-sm shadow-sm transition-colors">
+            Delete
           </button>
         </div>
 
-      </form>
-    </div>
-  </div>
-
-  <!-- Delete Confirm Modal -->
-  <div x-show="showDeleteConfirm" 
-       class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 modal-backdrop"
-       style="display: none;"
-       x-transition:enter="transition ease-out duration-200"
-       x-transition:enter-start="opacity-0"
-       x-transition:enter-end="opacity-100">
-    
-    <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl p-6 border border-slate-100"
-         @click.away="showDeleteConfirm = false"
-         x-transition:enter="transition ease-out duration-300"
-         x-transition:enter-start="scale-95 translate-y-4"
-         x-transition:enter-end="scale-100 translate-y-0">
-      
-      <div class="flex flex-col items-center text-center">
-        <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600 mb-4 shadow-inner">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6">
-            <path fill-rule="evenodd" d="M8.75 3A.75.75 0 0 0 8 3.75V5H4.75a.75.75 0 0 0 0 1.5h.25v9a2.25 2.25 0 0 0 2.25 2.25h5.5A2.25 2.25 0 0 0 15 15.5v-9h.25a.75.75 0 0 0 0-1.5H12V3.75A.75.75 0 0 0 11.25 3h-2.5ZM10 7.5a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-1.5 0v-5.5A.75.75 0 0 1 10 7.5Zm-2.25.75a.75.75 0 0 0-1.5 0v5.5a.75.75 0 0 0 1.5 0v-5.5Zm5.25-.75a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-1.5 0v-5.5a.75.75 0 0 1 .75-.75Z" clip-rule="evenodd" />
-          </svg>
-        </div>
-        <h3 class="font-extrabold text-lg text-slate-800 mb-2">Delete Product?</h3>
-        <p class="text-slate-400 text-sm mb-6">Are you sure you want to delete <span class="font-semibold text-slate-700" x-text="deleteTarget?.name"></span>? This action cannot be undone.</p>
       </div>
-
-      <div class="flex justify-end gap-3">
-        <button @click="showDeleteConfirm = false" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
-          Cancel
-        </button>
-        <button @click="deleteProduct()" class="bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2 rounded-xl text-sm shadow-sm transition-colors">
-          Delete
-        </button>
-      </div>
-
     </div>
-  </div>
-
-</body>
-</html>
+{% endblock %}
