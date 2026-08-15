@@ -47,22 +47,27 @@
       </div>
 
       <!-- Summary Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200/80">
           <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Sales</p>
-          <p class="text-2xl font-extrabold text-slate-800 mt-2" x-text="dailyReport ? formatCurrency(dailyReport.total_sales) : '₱0.00'"></p>
+          <p class="text-xl font-extrabold text-slate-800 mt-2 font-mono" x-text="dailyReport ? formatCurrency(dailyReport.total_sales) : '₱0.00'"></p>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Cost of Goods Sold (COGS)</p>
-          <p class="text-2xl font-extrabold text-slate-800 mt-2" x-text="dailyReport ? formatCurrency(dailyReport.total_cost) : '₱0.00'"></p>
+        <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200/80">
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Cost of Goods (COGS)</p>
+          <p class="text-xl font-extrabold text-slate-800 mt-2 font-mono" x-text="dailyReport ? formatCurrency(dailyReport.total_cost) : '₱0.00'"></p>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">GCash Fees Collected</p>
-          <p class="text-2xl font-extrabold text-slate-800 mt-2" x-text="dailyReport ? formatCurrency(dailyReport.total_gcash_fees) : '₱0.00'"></p>
+        <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200/80">
+          <p class="text-xs font-bold text-amber-600 uppercase tracking-wider">Utang Collected</p>
+          <p class="text-xl font-extrabold text-amber-700 mt-2 font-mono" x-text="dailyReport ? formatCurrency(dailyReport.total_debt_payments) : '₱0.00'"></p>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 bg-gradient-to-tr from-emerald-50 to-white">
-          <p class="text-xs font-bold text-emerald-700 uppercase tracking-wider">Net Profit</p>
-          <p class="text-2xl font-extrabold text-emerald-600 mt-2" x-text="dailyReport ? formatCurrency(dailyReport.net_profit + dailyReport.total_gcash_fees) : '₱0.00'"></p>
+        <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200/80">
+          <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">GCash Fees</p>
+          <p class="text-xl font-extrabold text-blue-700 mt-2 font-mono" x-text="dailyReport ? formatCurrency(dailyReport.total_gcash_fees) : '₱0.00'"></p>
+        </div>
+        <div class="bg-emerald-50/60 p-5 rounded-2xl shadow-xs border border-emerald-200/80">
+          <p class="text-xs font-bold text-emerald-800 uppercase tracking-wider">Net Profit</p>
+          <p class="text-xl font-extrabold text-emerald-700 mt-2 font-mono" x-text="dailyReport ? formatCurrency(dailyReport.net_profit + dailyReport.total_gcash_fees) : '₱0.00'"></p>
         </div>
       </div>
       
@@ -72,11 +77,11 @@
     <div x-show="activeTab === 'monthly'" class="space-y-6" style="display: none;" x-transition>
       
       <!-- Year/Month Selectors -->
-      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex gap-4 items-center">
+      <div class="bg-white p-4 rounded-2xl shadow-xs border border-slate-200/80 flex gap-4 items-center">
         <div class="flex items-center gap-3">
           <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Month:</label>
           
-          <select x-model.number="monthlyMonth" @change="loadMonthlyReport()" class="bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-600 font-semibold">
+          <select x-model.number="monthlyMonth" @change="loadMonthlyReport()" class="bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 font-semibold">
             <option value="1">January</option>
             <option value="2">February</option>
             <option value="3">March</option>
@@ -91,7 +96,7 @@
             <option value="12">December</option>
           </select>
           
-          <select x-model.number="monthlyYear" @change="loadMonthlyReport()" class="bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-600 font-semibold">
+          <select x-model.number="monthlyYear" @change="loadMonthlyReport()" class="bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 font-semibold">
             <template x-for="y in [2024, 2025, 2026, 2027, 2028]" :key="y">
               <option :value="y" x-text="y"></option>
             </template>
@@ -100,22 +105,26 @@
       </div>
 
       <!-- Summary Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200/80">
           <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Monthly Sales</p>
-          <p class="text-2xl font-extrabold text-slate-800 mt-2" x-text="monthlyReport ? formatCurrency(monthlyReport.total_sales) : '₱0.00'"></p>
+          <p class="text-xl font-extrabold text-slate-800 mt-2 font-mono" x-text="monthlyReport ? formatCurrency(monthlyReport.total_sales) : '₱0.00'"></p>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200/80">
           <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Monthly COGS</p>
-          <p class="text-2xl font-extrabold text-slate-800 mt-2" x-text="monthlyReport ? formatCurrency(monthlyReport.total_cost) : '₱0.00'"></p>
+          <p class="text-xl font-extrabold text-slate-800 mt-2 font-mono" x-text="monthlyReport ? formatCurrency(monthlyReport.total_cost) : '₱0.00'"></p>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Monthly GCash Fees</p>
-          <p class="text-2xl font-extrabold text-slate-800 mt-2" x-text="monthlyReport ? formatCurrency(monthlyReport.total_gcash_fees) : '₱0.00'"></p>
+        <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200/80">
+          <p class="text-xs font-bold text-amber-600 uppercase tracking-wider">Utang Collected</p>
+          <p class="text-xl font-extrabold text-amber-700 mt-2 font-mono" x-text="monthlyReport ? formatCurrency(monthlyReport.total_debt_payments) : '₱0.00'"></p>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 bg-gradient-to-tr from-emerald-50 to-white">
-          <p class="text-xs font-bold text-emerald-700 uppercase tracking-wider">Monthly Net Profit</p>
-          <p class="text-2xl font-extrabold text-emerald-600 mt-2" x-text="monthlyReport ? formatCurrency(monthlyReport.net_profit + monthlyReport.total_gcash_fees) : '₱0.00'"></p>
+        <div class="bg-white p-5 rounded-2xl shadow-xs border border-slate-200/80">
+          <p class="text-xs font-bold text-blue-600 uppercase tracking-wider">Monthly GCash Fees</p>
+          <p class="text-xl font-extrabold text-blue-700 mt-2 font-mono" x-text="monthlyReport ? formatCurrency(monthlyReport.total_gcash_fees) : '₱0.00'"></p>
+        </div>
+        <div class="bg-emerald-50/60 p-5 rounded-2xl shadow-xs border border-emerald-200/80">
+          <p class="text-xs font-bold text-emerald-800 uppercase tracking-wider">Monthly Net Profit</p>
+          <p class="text-xl font-extrabold text-emerald-700 mt-2 font-mono" x-text="monthlyReport ? formatCurrency(monthlyReport.net_profit + monthlyReport.total_gcash_fees) : '₱0.00'"></p>
         </div>
       </div>
 
