@@ -101,21 +101,23 @@ async def print_receipt(data: PrintReceiptRequest, db=Depends(get_db)):
     except (ValueError, TypeError):
         timestamp = datetime.now()
 
+    amount_tendered = float(txn.get("amount_tendered") or txn["total_amount"])
+    change = float(txn.get("change_amount") or 0.0)
+
     receipt_text = format_sale_receipt(
         store_name=store_name,
         store_address=store_address,
         store_phone=store_phone,
         items=items,
         total=txn["total_amount"],
-        amount_tendered=txn["total_amount"],     # We don't store amount_tendered in DB, use total
-        change=0,                                 # Change was already given at sale time
+        amount_tendered=amount_tendered,
+        change=change,
         payment_method=txn["payment_method"],
         transaction_id=txn["id"],
         timestamp=timestamp,
     )
 
     # ── Step 5: Send to printer ──────────────────────────────────────
-    # print_service.print_text() returns True if printed successfully
     print_success = print_service.print_text(receipt_text)
 
     # ── Step 6: Mark transaction as receipt printed ──────────────────
@@ -141,25 +143,8 @@ async def print_receipt(data: PrintReceiptRequest, db=Depends(get_db)):
 async def print_z_report(db=Depends(get_db)):
     """
     Print a Z-Report (End-of-Day summary receipt).
-
-    Business logic:
-    - A Z-Report is a standard POS concept: a summary of all transactions
-      for the current business day.
-    - Calculates:
-      • Total cash sales (SALE transactions with payment_method='CASH')
-      • Total GCash sales (SALE transactions with payment_method='GCASH')
-      • Total GCash fees earned (from gcash_transactions table)
-      • Grand total of all revenue
-      • Transaction counts
-    - Formats and prints the summary receipt.
-    - Typically done at end of day before closing the store.
-
-    The Z-Report helps the store owner:
-    1. Verify the cash in the drawer matches expected sales
-    2. Track daily GCash fee income
-    3. Keep a physical paper trail of daily totals
+    Calculates Cash Sales, Debt Repayments, GCash Sales, Utang Credit, and Cash in Drawer.
     """
-
     today_str = datetime.now().strftime("%Y-%m-%d")
 
     # ── Query cash sales for today ───────────────────────────────────
@@ -173,8 +158,17 @@ async def print_z_report(db=Depends(get_db)):
     cash_row = await cursor.fetchone()
     total_cash_sales = round(dict(cash_row)["total"], 2)
 
+    # ── Query Utang repayments collected in cash today ───────────────
+    cursor = await db.execute(
+        """SELECT COALESCE(SUM(total_amount), 0) as total
+           FROM transactions
+           WHERE date(created_at, 'localtime') = date('now', 'localtime')
+             AND transaction_type = 'UTANG_PAYMENT'"""
+    )
+    debt_pay_row = await cursor.fetchone()
+    total_debt_payments = round(dict(debt_pay_row)["total"], 2)
+
     # ── Query GCash sales for today ──────────────────────────────────
-    # These are SALE transactions paid via GCash (not GCash_IN/OUT services)
     cursor = await db.execute(
         """SELECT COALESCE(SUM(total_amount), 0) as total
            FROM transactions
@@ -185,7 +179,7 @@ async def print_z_report(db=Depends(get_db)):
     gcash_sale_row = await cursor.fetchone()
     total_gcash_sales = round(dict(gcash_sale_row)["total"], 2)
 
-    # ── Query Utang sales for today ──────────────────────────────────
+    # ── Query Utang credit sales for today ───────────────────────────
     cursor = await db.execute(
         """SELECT COALESCE(SUM(total_amount), 0) as total
            FROM transactions
@@ -197,7 +191,6 @@ async def print_z_report(db=Depends(get_db)):
     total_utang_sales = round(dict(utang_sale_row)["total"], 2)
 
     # ── Query GCash fee income for today ─────────────────────────────
-    # This is pure income from GCash cash-in/cash-out services
     cursor = await db.execute(
         """SELECT COALESCE(SUM(g.fee), 0) as total_fees,
                   COUNT(*) as gcash_count
@@ -215,16 +208,16 @@ async def print_z_report(db=Depends(get_db)):
         """SELECT COUNT(*) as count
            FROM transactions
            WHERE date(created_at, 'localtime') = date('now', 'localtime')
-             AND transaction_type = 'SALE'"""
+             AND transaction_type IN ('SALE', 'UTANG_PAYMENT')"""
     )
     count_row = await cursor.fetchone()
     transaction_count = dict(count_row)["count"]
 
-    # ── Calculate grand total ────────────────────────────────────────
-    # Grand total = cash sales + GCash sales + Utang sales + GCash fees
+    # ── Calculate grand total & cash in drawer ───────────────────────
+    total_cash_drawer = round(total_cash_sales + total_debt_payments, 2)
     grand_total = round(total_cash_sales + total_gcash_sales + total_utang_sales + total_gcash_fees, 2)
 
-    # ── Load store name for the receipt header ───────────────────────
+    # ── Load store name for receipt header ───────────────────────────
     cursor = await db.execute(
         "SELECT value FROM admin_settings WHERE key = 'store_name'"
     )
@@ -239,6 +232,7 @@ async def print_z_report(db=Depends(get_db)):
         total_gcash_sales=total_gcash_sales,
         total_utang_sales=total_utang_sales,
         total_gcash_fees=total_gcash_fees,
+        total_debt_payments=total_debt_payments,
         grand_total=grand_total,
         transaction_count=transaction_count,
         gcash_count=gcash_count,
@@ -253,6 +247,8 @@ async def print_z_report(db=Depends(get_db)):
         "date": today_str,
         "summary": {
             "total_cash_sales": total_cash_sales,
+            "total_debt_payments": total_debt_payments,
+            "total_cash_in_drawer": total_cash_drawer,
             "total_gcash_sales": total_gcash_sales,
             "total_utang_sales": total_utang_sales,
             "total_gcash_fees": total_gcash_fees,

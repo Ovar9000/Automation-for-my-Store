@@ -105,25 +105,22 @@ async def get_quick_items(db=Depends(get_db)):
 # TRANSACTION ROUTES
 # ═══════════════════════════════════════════════════════════════
 
+import uuid
+from datetime import datetime
+
 @router.post("/transactions")
 async def create_transaction(data: TransactionCreate, db=Depends(get_db)):
     """
-    Create a complete sale transaction.
+    Create a complete sale transaction atomically.
 
     Business logic flow:
     1. Validate that the cart is not empty.
-    2. Calculate total COGS (cost of goods sold) for profit tracking.
-    3. Insert the transaction header row.
-    4. Insert each line item into transaction_items.
-    5. Deduct stock quantities from the products table.
-    6. Calculate change if payment is CASH.
-    7. Return the completed transaction with change info.
-
-    NOTE: All money values are rounded to 2 decimal places to avoid
-    floating-point drift in financial calculations.
-
-    Stock deduction happens here (not on the frontend) to prevent
-    race conditions when multiple cashier tabs are open.
+    2. Calculate total COGS for profit tracking.
+    3. Generate a receipt number.
+    4. Insert the transaction header with full financial metadata.
+    5. Insert each line item (including pack labels) and deduct inventory stock.
+    6. If payment_method is UTANG, atomically update/create the customer's debt account.
+    7. Commit all DB mutations atomically in one transaction.
     """
 
     # ── Guard: Empty cart check ──────────────────────────────────────
@@ -133,34 +130,69 @@ async def create_transaction(data: TransactionCreate, db=Depends(get_db)):
             detail="Cannot create a transaction with an empty cart."
         )
 
-    # ── Calculate total COGS from the cart items ─────────────────────
-    # This is used for profit reporting: net_profit = total_sales - total_cost
+    # ── Calculate total COGS ─────────────────────────────────────────
     total_cost = round(
         sum(item.cost_price * item.quantity for item in data.items),
         2
     )
-
-    # ── Determine if receipt should be flagged as printed ────────────
+    total_amount = round(data.total_amount, 2)
     receipt_printed = 1 if data.print_receipt else 0
 
-    # ── Insert the transaction header ────────────────────────────────
+    # ── Generate Receipt Number ──────────────────────────────────────
+    date_prefix = datetime.now().strftime("%Y%m%d")
+    short_hash = uuid.uuid4().hex[:5].upper()
+    receipt_no = f"TXN-{date_prefix}-{short_hash}"
+
+    # ── Calculate payment amounts ────────────────────────────────────
+    method = (data.payment_method or "CASH").upper()
+    if method == "CASH":
+        amount_tendered = round(data.amount_tendered, 2) if data.amount_tendered else total_amount
+        change_amount = round(max(0, amount_tendered - total_amount), 2)
+        customer_name = None
+        notes = data.notes
+    elif method == "UTANG":
+        clean_cust_name = (data.customer_name or "").strip()
+        if not clean_cust_name:
+            raise HTTPException(status_code=400, detail="Customer name is required for Utang transactions.")
+        customer_name = clean_cust_name
+        amount_paid_now = round(max(0, data.amount_paid_now or 0), 2)
+        amount_tendered = amount_paid_now
+        change_amount = 0.0
+        amount_charged = round(max(0, total_amount - amount_paid_now), 2)
+        notes = data.notes or f"Utang Sale (Paid: ₱{amount_paid_now:.2f}, Charged: ₱{amount_charged:.2f})"
+    else:  # GCASH
+        amount_tendered = total_amount
+        change_amount = 0.0
+        customer_name = None
+        notes = data.notes
+
+    # ── Insert Transaction Header ────────────────────────────────────
     cursor = await db.execute(
         """INSERT INTO transactions
-           (transaction_type, total_amount, total_cost, payment_method, receipt_printed)
-           VALUES (?, ?, ?, ?, ?)""",
-        ("SALE", round(data.total_amount, 2), total_cost, data.payment_method, receipt_printed)
+           (receipt_number, transaction_type, total_amount, total_cost, payment_method,
+            amount_tendered, change_amount, customer_name, notes, receipt_printed)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            receipt_no,
+            "SALE",
+            total_amount,
+            total_cost,
+            method,
+            amount_tendered,
+            change_amount,
+            customer_name,
+            notes,
+            receipt_printed
+        )
     )
     transaction_id = cursor.lastrowid
 
-    # ── Insert each line item and deduct stock ───────────────────────
+    # ── Insert Line Items & Deduct Stock ─────────────────────────────
     for item in data.items:
-        # Insert the transaction line item
-        # We store product_name as a snapshot because the product name
-        # could be changed later in inventory management
         await db.execute(
             """INSERT INTO transaction_items
-               (transaction_id, product_id, product_name, quantity, unit_price, cost_price, subtotal)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+               (transaction_id, product_id, product_name, quantity, unit_price, cost_price, subtotal, pack_label)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 transaction_id,
                 item.product_id,
@@ -169,42 +201,64 @@ async def create_transaction(data: TransactionCreate, db=Depends(get_db)):
                 round(item.unit_price, 2),
                 round(item.cost_price, 2),
                 round(item.subtotal, 2),
+                item.pack_label
             )
         )
 
-        # Deduct stock from the product
-        # Using MAX(0, ...) would prevent negative stock, but sari-sari stores
-        # sometimes sell on credit or track negative stock intentionally.
-        # We allow negative stock and flag it in the UI instead.
         await db.execute(
             "UPDATE products SET stock_qty = stock_qty - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             (round(item.quantity, 2), item.product_id)
         )
 
+    # ── Atomic Utang Debt Ledger Update ──────────────────────────────
+    if method == "UTANG":
+        amount_charged = round(max(0, total_amount - (data.amount_paid_now or 0)), 2)
+        if amount_charged > 0:
+            c_cur = await db.execute(
+                "SELECT * FROM customer_debts WHERE LOWER(customer_name) = LOWER(?)",
+                (customer_name,)
+            )
+            existing = await c_cur.fetchone()
+            if existing:
+                debt_id = existing["id"]
+                new_debt = round(existing["total_debt"] + amount_charged, 2)
+                await db.execute(
+                    "UPDATE customer_debts SET total_debt = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (new_debt, debt_id)
+                )
+            else:
+                new_debt = amount_charged
+                ins_cur = await db.execute(
+                    "INSERT INTO customer_debts (customer_name, total_debt, phone_number, notes) VALUES (?, ?, ?, ?)",
+                    (customer_name, new_debt, data.phone_number, f"Created via Utang Sale #{receipt_no}")
+                )
+                debt_id = ins_cur.lastrowid
+
+            # Record in debt_transactions log
+            await db.execute(
+                """INSERT INTO debt_transactions (debt_id, sale_id, type, amount, balance_after, notes)
+                   VALUES (?, ?, 'CHARGE', ?, ?, ?)""",
+                (debt_id, transaction_id, amount_charged, new_debt, f"Charged from Sale #{receipt_no}")
+            )
+
     # ── Commit all changes atomically ────────────────────────────────
     await db.commit()
 
-    # ── Calculate change ─────────────────────────────────────────────
-    # Only relevant for CASH payments; GCASH doesn't need change
-    change = round(data.amount_tendered - data.total_amount, 2) if data.payment_method == "CASH" else 0.0
-    if change < 0:
-        change = 0.0  # Safety: tendered can't be less than total (frontend validates)
-
     # ── Fetch the created transaction for the response ───────────────
-    cursor = await db.execute(
-        "SELECT * FROM transactions WHERE id = ?",
-        (transaction_id,)
-    )
+    cursor = await db.execute("SELECT * FROM transactions WHERE id = ?", (transaction_id,))
     txn_row = await cursor.fetchone()
     txn = dict(txn_row)
 
     return {
         "id": txn["id"],
+        "receipt_number": txn.get("receipt_number", receipt_no),
         "transaction_type": txn["transaction_type"],
         "total_amount": round(txn["total_amount"], 2),
         "total_cost": round(txn["total_cost"], 2),
         "payment_method": txn["payment_method"],
-        "change": change,
+        "amount_tendered": round(txn.get("amount_tendered", amount_tendered), 2),
+        "change": round(txn.get("change_amount", change_amount), 2),
+        "customer_name": txn.get("customer_name"),
         "receipt_printed": bool(txn["receipt_printed"]),
         "created_at": txn["created_at"],
         "item_count": len(data.items),

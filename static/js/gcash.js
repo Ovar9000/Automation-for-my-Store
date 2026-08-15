@@ -277,9 +277,16 @@ function gcashApp() {
       if (!this.result) return;
       this.error = '';
 
-      // Validate inputs: both require mobileNumber and referenceNumber now
-      if (!this.mobileNumber.trim() || !this.referenceNumber.trim()) {
-        this.error = 'Mobile number and Reference are required for verification';
+      const cleanMobile = (this.mobileNumber || '').trim();
+      const cleanRef = (this.referenceNumber || '').trim();
+
+      if (!cleanMobile) {
+        this.error = 'Customer mobile number is required';
+        return;
+      }
+
+      if (this.transactionType === 'GCASH_OUT' && !cleanRef) {
+        this.error = 'GCash Reference Number is required for Cash-Out verification';
         return;
       }
 
@@ -294,10 +301,10 @@ function gcashApp() {
             fee: this.result.fee,
             total_collected: this.result.total_collected,
             transaction_type: this.transactionType,
-            reference_number: this.referenceNumber.trim() || null,
-            mobile_number: this.mobileNumber.trim() || null,
+            reference_number: cleanRef || null,
+            mobile_number: cleanMobile,
             receipt_image: this.receiptImage || null,
-            gcash_timestamp: this.gcashTimestamp.trim() || null
+            gcash_timestamp: (this.gcashTimestamp || '').trim() || null
           }),
         });
 

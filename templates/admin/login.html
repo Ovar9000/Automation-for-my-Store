@@ -10,6 +10,17 @@
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Prevent theme flash script -->
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('admin_theme') || 'light';
+      if (savedTheme === 'dark') {
+        document.documentElement.classList.add('admin-dark');
+      } else {
+        document.documentElement.classList.remove('admin-dark');
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="/static/css/custom.css">
 </head>
 <body class="bg-gradient-to-tr from-sky-100 to-slate-50 min-h-screen flex items-center justify-center font-sans p-4 antialiased admin-layout">

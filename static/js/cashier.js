@@ -1,32 +1,33 @@
-/* ============================================================
-   Sari-Sari POS — Cashier App (Keyboard-First Fork)
-   ============================================================
-   Design philosophy:
-   - Barcode scanner input is the PRIMARY interaction
-   - Keyboard shortcuts for ALL actions (no mouse required)
-   - Unified smart input: digits + Enter → barcode, letters → search
-   - Arrow-key navigation for search results and cart items
-   ============================================================ */
+/**
+ * Sari-Sari POS — Cashier Controller (Clean Minimalist Edition)
+ * =============================================================
+ * Fast, keyboard-first, barcode-enabled cashier terminal.
+ * Features:
+ *  - Unified smart input (auto-detects barcodes vs product names)
+ *  - Arrow-key navigation for search results and cart items
+ *  - Atomic CASH, GCASH, and UTANG (Debt) checkout flows
+ *  - Multi-pack pricing with clean inline selection
+ *  - Crash-resistant localStorage cart synchronization
+ */
 
 function cashierApp() {
   return {
     // ── State ─────────────────────────────────────────────────
     cart: [],
-    smartInput: '',               // Unified barcode + search input
+    smartInput: '',
     searchResults: [],
-    selectedSearchIndex: -1,      // Keyboard nav: highlighted search result
-    selectedCartIndex: -1,        // Keyboard nav: highlighted cart item
+    selectedSearchIndex: -1,
+    selectedCartIndex: -1,
     quickItems: [],
-    quickStripOpen: true,         // Quick items strip expanded by default
     amountTendered: '',
     printReceipt: false,
     showGcashModal: false,
-    showPaymentModal: false,       // Big Payment Checkout Modal
-    paymentTab: 'cash',            // 'cash' | 'gcash'
-    showSuccessModal: false,       // Post-sale change display modal
-    lastSaleDetails: { total: 0, tendered: 0, change: 0, itemsCount: 0 },
-    lastScannedProduct: null,     // Most recently scanned item object
-    showBundleBanner: false,      // Show Multi-Pack conversion banner
+    showPaymentModal: false,
+    paymentTab: 'cash',            // 'cash' | 'gcash' | 'utang'
+    showSuccessModal: false,
+    lastSaleDetails: { total: 0, tendered: 0, change: 0, itemsCount: 0, method: 'CASH', receiptNo: '' },
+    lastScannedProduct: null,
+    showBundleBanner: false,
     showWeightModal: false,
     weightInput: '',
     selectedWeightItem: null,
@@ -34,7 +35,6 @@ function cashierApp() {
     notification: { show: false, message: '', type: 'success' },
     editingCartIndex: -1,
     editingQty: '',
-    paymentFocused: false,        // F5 flow
     contextMode: 'scan',          // 'scan' | 'search' | 'cart' | 'pay'
 
     // Customer Debt (Utang) State
@@ -66,14 +66,12 @@ function cashierApp() {
       return Math.max(0, tendered - this.total);
     },
 
-    // Determine if input looks like a barcode (all digits, optionally with dashes)
     get inputLooksLikeBarcode() {
       return /^[\d\-]+$/.test(this.smartInput.trim());
     },
 
-    // ── Lifecycle ────────────────────────────────────────────
+    // ── Lifecycle ─────────────────────────────────────────────
     init() {
-      // Restore cart from localStorage
       try {
         const saved = localStorage.getItem('pos_cart');
         if (saved) {
@@ -84,25 +82,17 @@ function cashierApp() {
         this.cart = [];
       }
 
-      // Load quick-access items
       this.loadQuickItems();
+      this.loadDebtList();
 
-      // Auto-focus smart input
       this.$nextTick(() => this.focusSmartInput());
-
-      // Bind global keyboard shortcuts
       document.addEventListener('keydown', (e) => this.handleKeyboard(e));
     },
 
     // ═══════════════════════════════════════════════════════════
-    // UNIFIED SMART INPUT
+    // SMART INPUT & BARCODE SCANNING
     // ═══════════════════════════════════════════════════════════
 
-    /**
-     * Called on every keystroke in the smart input (debounced for search).
-     * If input contains letters → product name search.
-     * If input is all digits → just wait for Enter (barcode scan).
-     */
     onSmartInput() {
       const val = this.smartInput.trim();
 
@@ -114,23 +104,15 @@ function cashierApp() {
       }
 
       if (this.inputLooksLikeBarcode) {
-        // Pure digits: barcode mode — don't search, wait for Enter
         this.searchResults = [];
         this.selectedSearchIndex = -1;
         this.contextMode = 'scan';
       } else {
-        // Contains letters: name search mode
         this.contextMode = 'search';
         this.debouncedSearch();
       }
     },
 
-    /**
-     * Called on Enter in the smart input.
-     * If barcode-like → barcode lookup API.
-     * If search results visible + item selected → add selected to cart.
-     * If search results visible + no selection → select first result.
-     */
     async onSmartEnter() {
       const val = this.smartInput.trim();
       if (!val) {
@@ -140,35 +122,100 @@ function cashierApp() {
         return;
       }
 
-      // If search results are showing and we have a selection
       if (this.searchResults.length > 0 && this.selectedSearchIndex >= 0) {
         this.selectSearchResult(this.searchResults[this.selectedSearchIndex]);
         return;
       }
 
-      // If search results are showing but no selection, select first
       if (this.searchResults.length > 0 && !this.inputLooksLikeBarcode) {
         this.selectSearchResult(this.searchResults[0]);
         return;
       }
 
-      // Otherwise treat as barcode scan
       await this.scanBarcode(val);
     },
 
-    // Debounce helper for search
     _searchTimeout: null,
     debouncedSearch() {
       clearTimeout(this._searchTimeout);
       this._searchTimeout = setTimeout(() => {
         this.searchProducts();
-      }, 200);
+      }, 180);
     },
 
-    // ── Cart Operations ──────────────────────────────────────
+    async searchProducts() {
+      const q = this.smartInput.trim();
+      if (q.length < 2 || this.inputLooksLikeBarcode) {
+        this.searchResults = [];
+        this.selectedSearchIndex = -1;
+        return;
+      }
+      try {
+        const res = await fetch(`/api/products/search?q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          this.searchResults = await res.json();
+          this.selectedSearchIndex = this.searchResults.length > 0 ? 0 : -1;
+        }
+      } catch (err) {
+        console.error('Search error:', err);
+      }
+    },
+
+    selectSearchResult(product) {
+      if (product.unit === 'kg' || product.unit === 'L') {
+        this.selectedWeightItem = product;
+        this.weightInput = '';
+        this.showWeightModal = true;
+      } else {
+        this.addToCart(product);
+      }
+      this.smartInput = '';
+      this.searchResults = [];
+      this.selectedSearchIndex = -1;
+      this.contextMode = 'scan';
+    },
+
+    async scanBarcode(code) {
+      if (!code) code = this.smartInput.trim();
+      if (!code) return;
+
+      try {
+        const res = await fetch(`/api/products/barcode/${encodeURIComponent(code)}`);
+        if (!res.ok) {
+          this.showNotification(`No product with barcode "${code}"`, 'error');
+          this.smartInput = '';
+          this.focusSmartInput();
+          return;
+        }
+        const product = await res.json();
+        if (product.unit === 'kg' || product.unit === 'L') {
+          this.selectedWeightItem = product;
+          this.weightInput = '';
+          this.showWeightModal = true;
+        } else {
+          this.addToCart(product);
+        }
+      } catch (err) {
+        this.showNotification('Scan error: ' + err.message, 'error');
+      }
+      this.smartInput = '';
+      this.focusSmartInput();
+    },
+
+    focusSmartInput() {
+      this.contextMode = 'scan';
+      this.selectedCartIndex = -1;
+      const el = document.getElementById('smart-input');
+      if (el) el.focus();
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // CART OPERATIONS
+    // ═══════════════════════════════════════════════════════════
+
     _bundleBannerTimeout: null,
     addToCart(product, quantity = 1) {
-      const existing = this.cart.find(item => item.product_id === product.id);
+      const existing = this.cart.find(item => item.product_id === product.id && !item.pack_label);
       if (existing) {
         existing.quantity += quantity;
         existing.subtotal = Math.round(existing.quantity * existing.unit_price * 100) / 100;
@@ -181,7 +228,7 @@ function cashierApp() {
           unit_price: product.selling_price,
           cost_price: product.cost_price,
           subtotal: Math.round(quantity * product.selling_price * 100) / 100,
-          pcs_per_pack: product.pcs_per_pack || 12,
+          pcs_per_pack: product.pcs_per_pack || 10,
           full_pack_price: product.full_pack_price || null,
           half_dozen_price: product.half_dozen_price || null,
           dozen_price: product.dozen_price || null,
@@ -192,22 +239,23 @@ function cashierApp() {
       }
 
       this.lastScannedProduct = product;
-      this.showBundleBanner = true;
-      clearTimeout(this._bundleBannerTimeout);
-      this._bundleBannerTimeout = setTimeout(() => {
-        this.showBundleBanner = false;
-      }, 6000);
+      if (product.pcs_per_pack && product.pcs_per_pack > 1) {
+        this.showBundleBanner = true;
+        clearTimeout(this._bundleBannerTimeout);
+        this._bundleBannerTimeout = setTimeout(() => {
+          this.showBundleBanner = false;
+        }, 5000);
+      }
 
       this.saveCart();
-      this.showNotification(`${product.name} added`);
+      this.showNotification(`Added ${product.name}`);
       this.focusSmartInput();
 
-      // Trigger total pulse animation
       this.$nextTick(() => {
         const el = document.getElementById('cart-total');
         if (el) {
           el.classList.remove('total-pulse');
-          void el.offsetWidth; // force reflow
+          void el.offsetWidth;
           el.classList.add('total-pulse');
         }
       });
@@ -215,7 +263,6 @@ function cashierApp() {
 
     convertLastItemToPack(packType) {
       if (!this.lastScannedProduct || this.cart.length === 0) return;
-
       const item = this.cart.find(i => i.product_id === this.lastScannedProduct.id);
       if (!item) return;
 
@@ -225,16 +272,16 @@ function cashierApp() {
 
       if (packType === 'half') {
         item.quantity = halfQty;
-        if (item.half_dozen_price) {
-          item.subtotal = Math.round(item.half_dozen_price * 100) / 100;
-        } else if (item.full_pack_price) {
+        if (item.full_pack_price) {
           item.subtotal = Math.round((item.full_pack_price / 2) * 100) / 100;
+        } else if (item.half_dozen_price) {
+          item.subtotal = Math.round(item.half_dozen_price * 100) / 100;
         } else {
           item.subtotal = Math.round(halfQty * item.unit_price * 100) / 100;
         }
         item.pack_label = `Half-Pack (${halfQty}pcs)`;
-        this.showNotification(`✓ ${item.product_name} set to Half-Pack (${halfQty}pcs) — ₱${item.subtotal.toFixed(2)}`, 'success');
-      } else if (packType === 'dozen' || packType === 'full') {
+        this.showNotification(`Set to Half-Pack (${halfQty}pcs) — ₱${item.subtotal.toFixed(2)}`, 'success');
+      } else if (packType === 'full' || packType === 'dozen') {
         item.quantity = fullQty;
         if (item.full_pack_price) {
           item.subtotal = Math.round(item.full_pack_price * 100) / 100;
@@ -244,7 +291,7 @@ function cashierApp() {
           item.subtotal = Math.round(fullQty * item.unit_price * 100) / 100;
         }
         item.pack_label = `Full-Pack (${fullQty}pcs)`;
-        this.showNotification(`✓ ${item.product_name} set to Full Pack (${fullQty}pcs) — ₱${item.subtotal.toFixed(2)}`, 'success');
+        this.showNotification(`Set to Full-Pack (${fullQty}pcs) — ₱${item.subtotal.toFixed(2)}`, 'success');
       }
 
       this.showBundleBanner = false;
@@ -256,11 +303,10 @@ function cashierApp() {
       const name = this.cart[index]?.product_name || 'Item';
       this.cart.splice(index, 1);
       this.saveCart();
-      // Adjust selected cart index
       if (this.selectedCartIndex >= this.cart.length) {
         this.selectedCartIndex = this.cart.length - 1;
       }
-      this.showNotification(`${name} removed`, 'info');
+      this.showNotification(`Removed ${name}`, 'info');
     },
 
     updateQuantity(index, newQty) {
@@ -294,88 +340,15 @@ function cashierApp() {
       this.selectedCartIndex = -1;
       this.saveCart();
       this.showNotification('Cart cleared', 'info');
+      this.focusSmartInput();
     },
 
     saveCart() {
       try {
         localStorage.setItem('pos_cart', JSON.stringify(this.cart));
       } catch (e) {
-        console.warn('Failed to save cart to localStorage:', e);
+        console.warn('Failed to save cart:', e);
       }
-    },
-
-    // ── Barcode Scanning ─────────────────────────────────────
-    async scanBarcode(code) {
-      if (!code) code = this.smartInput.trim();
-      if (!code) return;
-
-      try {
-        const res = await fetch(`/api/products/barcode/${encodeURIComponent(code)}`);
-        if (!res.ok) {
-          this.showNotification('Product not found!', 'error');
-          this.smartInput = '';
-          this.focusSmartInput();
-          return;
-        }
-        const product = await res.json();
-        if (product.unit === 'kg' || product.unit === 'L') {
-          this.selectedWeightItem = product;
-          this.weightInput = '';
-          this.showWeightModal = true;
-        } else {
-          this.addToCart(product);
-        }
-      } catch (err) {
-        this.showNotification('Scan error: ' + err.message, 'error');
-      }
-      this.smartInput = '';
-      this.focusSmartInput();
-    },
-
-    focusSmartInput() {
-      this.contextMode = 'scan';
-      this.paymentFocused = false;
-      this.selectedCartIndex = -1;
-      const el = document.getElementById('smart-input');
-      if (el) el.focus();
-    },
-
-    // Legacy alias for compatibility
-    focusBarcode() {
-      this.focusSmartInput();
-    },
-
-    // ── Product Search ───────────────────────────────────────
-    async searchProducts() {
-      const q = this.smartInput.trim();
-      if (q.length < 2 || this.inputLooksLikeBarcode) {
-        this.searchResults = [];
-        this.selectedSearchIndex = -1;
-        return;
-      }
-      try {
-        const res = await fetch(`/api/products/search?q=${encodeURIComponent(q)}`);
-        if (res.ok) {
-          this.searchResults = await res.json();
-          this.selectedSearchIndex = this.searchResults.length > 0 ? 0 : -1;
-        }
-      } catch (err) {
-        console.error('Search error:', err);
-      }
-    },
-
-    selectSearchResult(product) {
-      if (product.unit === 'kg' || product.unit === 'L') {
-        this.selectedWeightItem = product;
-        this.weightInput = '';
-        this.showWeightModal = true;
-      } else {
-        this.addToCart(product);
-      }
-      this.smartInput = '';
-      this.searchResults = [];
-      this.selectedSearchIndex = -1;
-      this.contextMode = 'scan';
     },
 
     // ── Quick Items ──────────────────────────────────────────
@@ -390,24 +363,10 @@ function cashierApp() {
       }
     },
 
-    addQuickItem(item) {
-      if (item.unit === 'kg' || item.unit === 'L') {
-        this.selectedWeightItem = item;
-        this.weightInput = '';
-        this.showWeightModal = true;
-      } else {
-        this.addToCart(item);
-      }
-    },
-
-    toggleQuickStrip() {
-      this.quickStripOpen = !this.quickStripOpen;
-    },
-
     addWeightedItem() {
       const weight = parseFloat(this.weightInput);
       if (!weight || weight <= 0) {
-        this.showNotification('Enter a valid weight/quantity', 'error');
+        this.showNotification('Please enter a valid amount', 'error');
         return;
       }
       this.addToCart(this.selectedWeightItem, weight);
@@ -416,15 +375,13 @@ function cashierApp() {
       this.weightInput = '';
     },
 
-    // ── Payment Processing ───────────────────────────────────
-    /**
-     * F5 two-press flow:
-     * 1st press: focus amount tendered input
-     * 2nd press (or Enter in tendered field): complete sale
-     */
+    // ═══════════════════════════════════════════════════════════
+    // CHECKOUT & ATOMIC PAYMENT
+    // ═══════════════════════════════════════════════════════════
+
     initiatePayment() {
       if (this.cart.length === 0) {
-        this.showNotification('Cart is empty!', 'error');
+        this.showNotification('Cart is empty', 'error');
         return;
       }
 
@@ -436,7 +393,7 @@ function cashierApp() {
       }
 
       this.$nextTick(() => {
-        const el = document.getElementById('big-amount-tendered');
+        const el = document.getElementById('amount-tendered');
         if (el) {
           el.focus();
           el.select();
@@ -445,35 +402,32 @@ function cashierApp() {
     },
 
     async processPayment(method = 'CASH') {
-      if (this.cart.length === 0) {
-        this.showNotification('Cart is empty!', 'error');
-        return;
-      }
+      if (this.cart.length === 0) return;
 
       const currentTotal = this.total;
       const currentItems = this.totalItems;
       const tenderedVal = parseFloat(this.amountTendered) || currentTotal;
 
-      if (method === 'CASH') {
-        if (tenderedVal < currentTotal) {
-          this.showNotification('Insufficient amount tendered!', 'error');
-          return;
-        }
+      if (method === 'CASH' && tenderedVal < currentTotal) {
+        this.showNotification('Amount tendered is less than total', 'error');
+        return;
       }
 
       this.isProcessing = true;
 
       try {
+        const payload = {
+          items: this.cart,
+          total_amount: currentTotal,
+          payment_method: method,
+          amount_tendered: method === 'CASH' ? tenderedVal : currentTotal,
+          print_receipt: this.printReceipt,
+        };
+
         const res = await fetch('/api/transactions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            items: this.cart,
-            total_amount: currentTotal,
-            payment_method: method,
-            amount_tendered: tenderedVal,
-            print_receipt: this.printReceipt,
-          }),
+          body: JSON.stringify(payload),
         });
 
         if (!res.ok) {
@@ -484,31 +438,87 @@ function cashierApp() {
         const result = await res.json();
         const changeAmount = result.change !== undefined ? result.change : Math.max(0, tenderedVal - currentTotal);
 
-        // Store last sale details for the Big Success Modal
         this.lastSaleDetails = {
           total: currentTotal,
-          tendered: tenderedVal,
+          tendered: method === 'CASH' ? tenderedVal : currentTotal,
           change: changeAmount,
           itemsCount: currentItems,
-          method: method
+          method: method,
+          receiptNo: result.receipt_number || `#${result.id}`
         };
 
         this.showPaymentModal = false;
         this.showSuccessModal = true;
 
-        // Clear cart
         this.cart = [];
         this.amountTendered = '';
         this.selectedCartIndex = -1;
-        this.paymentFocused = false;
         this.saveCart();
 
         this.showNotification(`Sale complete! Change: ₱${changeAmount.toFixed(2)}`, 'success');
       } catch (err) {
         this.showNotification('Error: ' + err.message, 'error');
+      } finally {
+        this.isProcessing = false;
+      }
+    },
+
+    async processUtangSale() {
+      const custName = this.debtCustomerName.trim();
+      if (!custName) {
+        this.showNotification('Please enter a customer name for the debt record', 'error');
+        return;
       }
 
-      this.isProcessing = false;
+      if (this.cart.length === 0) return;
+      this.isProcessing = true;
+
+      try {
+        const amountPaidNow = parseFloat(this.debtPaidNow) || 0;
+
+        const res = await fetch('/api/transactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: this.cart,
+            total_amount: this.total,
+            payment_method: 'UTANG',
+            amount_tendered: amountPaidNow,
+            amount_paid_now: amountPaidNow,
+            customer_name: custName,
+            print_receipt: false,
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || 'Utang transaction failed');
+        }
+
+        const result = await res.json();
+
+        this.lastSaleDetails = {
+          total: this.total,
+          tendered: amountPaidNow,
+          change: 0,
+          itemsCount: this.totalItems,
+          method: 'UTANG',
+          receiptNo: result.receipt_number || `#${result.id}`
+        };
+
+        this.showPaymentModal = false;
+        this.showSuccessModal = true;
+        this.cart = [];
+        this.saveCart();
+        this.debtCustomerName = '';
+        this.debtPaidNow = '';
+        await this.loadDebtList();
+        this.showNotification(`Utang sale charged to ${custName}`, 'success');
+      } catch (err) {
+        this.showNotification(err.message || 'Utang sale failed', 'error');
+      } finally {
+        this.isProcessing = false;
+      }
     },
 
     closeSuccessModal() {
@@ -517,7 +527,7 @@ function cashierApp() {
       this.focusSmartInput();
     },
 
-    // ── Quick Denomination ───────────────────────────────────
+    // ── Quick Denominations ──────────────────────────────────
     setDenomination(amount) {
       this.amountTendered = String(amount);
     },
@@ -526,12 +536,7 @@ function cashierApp() {
       this.amountTendered = String(this.total);
     },
 
-    addDenomination(amount) {
-      const current = parseFloat(this.amountTendered) || 0;
-      this.amountTendered = String(current + amount);
-    },
-
-    // ── Z-Report ─────────────────────────────────────────────
+    // ── End of Day Z-Report ───────────────────────────────────
     async printZReport() {
       try {
         const res = await fetch('/api/print/z-report', { method: 'POST' });
@@ -546,63 +551,10 @@ function cashierApp() {
       }
     },
 
-    // ── Customer Debt (Utang) Operations ──────────────────────
+    // ── Utang Ledger Management ──────────────────────────────
     async openDebtLedgerModal() {
       this.showDebtLedgerModal = true;
       await this.loadDebtList();
-    },
-
-    getQuickCardBg(item) {
-      const color = item.quick_button_color || '#3b82f6';
-      return `linear-gradient(145deg, ${color}35 0%, #0f172a 100%)`;
-    },
-
-    findDebtCustomer(name) {
-      if (!name || !name.trim()) return null;
-      const clean = name.trim().toLowerCase();
-      return this.debtCustomers.find(c => c.customer_name.toLowerCase() === clean) || null;
-    },
-
-    getMatchingDebtCustomers() {
-      if (!this.debtCustomerName || !this.debtCustomerName.trim()) return this.debtCustomers.slice(0, 5);
-      const query = this.debtCustomerName.trim().toLowerCase();
-      return this.debtCustomers.filter(c => c.customer_name.toLowerCase().includes(query)).slice(0, 5);
-    },
-
-    async createNewCustomerAccount() {
-      if (!this.newCustomerName.trim()) return;
-
-      this.isProcessing = true;
-      try {
-        const initialDebt = parseFloat(this.newCustomerInitialDebt) || 0;
-        const res = await fetch('/api/debts/charge', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customer_name: this.newCustomerName.trim(),
-            amount_charged: initialDebt > 0 ? initialDebt : 0.01,
-            phone_number: this.newCustomerPhone.trim() || null,
-            notes: 'Registered upfront via Utang Ledger'
-          })
-        });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.detail || 'Failed to create customer account');
-        }
-
-        this.showNotification(`Customer account '${this.newCustomerName.trim()}' created!`, 'success');
-        this.showAddCustomerModal = false;
-        this.newCustomerName = '';
-        this.newCustomerPhone = '';
-        this.newCustomerInitialDebt = '';
-        await this.loadDebtList();
-      } catch (err) {
-        console.error('Create debt account error:', err);
-        alert(err.message || 'Failed to create customer account.');
-      } finally {
-        this.isProcessing = false;
-      }
     },
 
     async loadDebtList() {
@@ -617,88 +569,23 @@ function cashierApp() {
       }
     },
 
+    findDebtCustomer(name) {
+      if (!name || !name.trim()) return null;
+      const clean = name.trim().toLowerCase();
+      return this.debtCustomers.find(c => c.customer_name.toLowerCase() === clean) || null;
+    },
+
+    getMatchingDebtCustomers() {
+      if (!this.debtCustomerName || !this.debtCustomerName.trim()) return this.debtCustomers.slice(0, 5);
+      const query = this.debtCustomerName.trim().toLowerCase();
+      return this.debtCustomers.filter(c => c.customer_name.toLowerCase().includes(query)).slice(0, 5);
+    },
+
     focusDebtCustomerInput() {
       this.$nextTick(() => {
         const el = document.getElementById('debt-customer-name');
         if (el) { el.focus(); el.select(); }
       });
-    },
-
-    async processUtangSale() {
-      if (!this.debtCustomerName.trim()) {
-        alert('Please enter a customer name for the debt record.');
-        return;
-      }
-
-      if (this.cart.length === 0) return;
-      this.isProcessing = true;
-
-      try {
-        const amountPaidNow = parseFloat(this.debtPaidNow) || 0;
-
-        // 1. Process store transaction
-        const res = await fetch('/api/transactions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            items: this.cart,
-            total_amount: this.total,
-            payment_method: 'UTANG',
-            amount_tendered: amountPaidNow,
-            print_receipt: false,
-          })
-        });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.detail || 'Transaction failed');
-        }
-
-        const saleResult = await res.json();
-
-        // 2. Charge balance to customer debt account
-        const amountCharged = Math.max(0, this.total - amountPaidNow);
-
-        if (amountCharged > 0) {
-          const debtRes = await fetch('/api/debts/charge', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              customer_name: this.debtCustomerName.trim(),
-              sale_id: saleResult.id,
-              amount_charged: amountCharged,
-              amount_paid_now: amountPaidNow,
-              notes: `Store Sale #${saleResult.id}`
-            })
-          });
-
-          if (!debtRes.ok) {
-            const errData = await debtRes.json().catch(() => ({}));
-            throw new Error(errData.detail || 'Failed to update debt account');
-          }
-        }
-
-        this.lastSaleDetails = {
-          total: this.total,
-          tendered: amountPaidNow,
-          change: 0,
-          itemsCount: this.totalItems,
-          method: 'UTANG'
-        };
-
-        this.showPaymentModal = false;
-        this.showSuccessModal = true;
-        this.cart = [];
-        this.saveCart();
-        this.debtCustomerName = '';
-        this.debtPaidNow = '';
-        await this.loadDebtList();
-      } catch (err) {
-        console.error('Utang sale error:', err);
-        alert(err.message || 'Utang transaction failed.');
-      } finally {
-        this.isProcessing = false;
-      }
     },
 
     openRepaymentModal(customer) {
@@ -728,8 +615,42 @@ function cashierApp() {
         this.showRepaymentModal = false;
         await this.loadDebtList();
       } catch (err) {
-        console.error('Repayment error:', err);
-        alert('Debt repayment failed.');
+        this.showNotification('Debt repayment failed', 'error');
+      } finally {
+        this.isProcessing = false;
+      }
+    },
+
+    async createNewCustomerAccount() {
+      if (!this.newCustomerName.trim()) return;
+
+      this.isProcessing = true;
+      try {
+        const initialDebt = parseFloat(this.newCustomerInitialDebt) || 0;
+        const res = await fetch('/api/debts/charge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customer_name: this.newCustomerName.trim(),
+            amount_charged: initialDebt > 0 ? initialDebt : 0.01,
+            phone_number: this.newCustomerPhone.trim() || null,
+            notes: 'Registered via Utang Ledger'
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || 'Failed to create customer account');
+        }
+
+        this.showNotification(`Created customer '${this.newCustomerName.trim()}'`, 'success');
+        this.showAddCustomerModal = false;
+        this.newCustomerName = '';
+        this.newCustomerPhone = '';
+        this.newCustomerInitialDebt = '';
+        await this.loadDebtList();
+      } catch (err) {
+        this.showNotification(err.message || 'Failed to create customer', 'error');
       } finally {
         this.isProcessing = false;
       }
@@ -743,33 +664,19 @@ function cashierApp() {
     },
 
     // ═══════════════════════════════════════════════════════════
-    // KEYBOARD SHORTCUT HANDLER (Keyboard-First)
+    // KEYBOARD NAVIGATION HANDLER
     // ═══════════════════════════════════════════════════════════
     handleKeyboard(event) {
       const tag = event.target.tagName;
-      const isInput = tag === 'INPUT' || tag === 'TEXTAREA';
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
       const isSmartInput = event.target.id === 'smart-input';
       const isTenderedInput = event.target.id === 'amount-tendered';
 
-      // ── Modal specific key handlers ───────────────────────
+      // ── Modal Dismiss / Complete with Enter/Esc ────────────
       if (this.showSuccessModal) {
         if (event.key === 'Enter' || event.key === 'Escape' || event.key === ' ') {
           event.preventDefault();
           this.closeSuccessModal();
-          return;
-        }
-      }
-
-      // ── Multi-Pack Hotkey Conversion ([1] for 6pcs, [2] for 12pcs) ──
-      if (this.showBundleBanner && !this.showPaymentModal && !this.showSuccessModal && !this.showGcashModal && !this.showWeightModal) {
-        if (event.key === '1' && (isSmartInput ? this.smartInput === '' : !isInput)) {
-          event.preventDefault();
-          this.convertLastItemToPack('half');
-          return;
-        }
-        if (event.key === '2' && (isSmartInput ? this.smartInput === '' : !isInput)) {
-          event.preventDefault();
-          this.convertLastItemToPack('dozen');
           return;
         }
       }
@@ -786,7 +693,7 @@ function cashierApp() {
           event.preventDefault();
           this.paymentTab = 'cash';
           this.$nextTick(() => {
-            const el = document.getElementById('big-amount-tendered');
+            const el = document.getElementById('amount-tendered');
             if (el) { el.focus(); el.select(); }
           });
           return;
@@ -803,12 +710,11 @@ function cashierApp() {
           return;
         }
         if (event.key === 'Enter') {
-          const targetId = event.target.id;
           if (this.paymentTab === 'utang') {
             event.preventDefault();
             this.processUtangSale();
             return;
-          } else if (targetId === 'big-amount-tendered' || !isInput) {
+          } else if (isTenderedInput || !isInput) {
             event.preventDefault();
             this.processPayment(this.paymentTab === 'cash' ? 'CASH' : 'GCASH');
             return;
@@ -816,7 +722,7 @@ function cashierApp() {
         }
       }
 
-      // ── F-Keys always work ──────────────────────────────────
+      // ── Function Keys ──────────────────────────────────────
       switch (event.key) {
         case 'F1':
           if (!this.showPaymentModal) {
@@ -867,18 +773,15 @@ function cashierApp() {
           this.printZReport();
           return;
 
-        case 'F9':
-          event.preventDefault();
-          window.location.href = '/admin/inventory';
-          return;
-
         case 'Escape':
           event.preventDefault();
-          // Cascading escape: modals → search → payment → barcode
           if (this.showGcashModal) {
             this.showGcashModal = false;
           } else if (this.showWeightModal) {
             this.showWeightModal = false;
+          } else if (this.showDebtLedgerModal) {
+            this.showDebtLedgerModal = false;
+            this.focusSmartInput();
           } else if (this.showPaymentModal) {
             this.showPaymentModal = false;
             this.focusSmartInput();
@@ -900,14 +803,11 @@ function cashierApp() {
           return;
       }
 
-      // ── Arrow keys in smart input: navigate search results ──
+      // ── Search Navigation (Arrow keys in smart input) ──────
       if (isSmartInput && this.searchResults.length > 0) {
         if (event.key === 'ArrowDown') {
           event.preventDefault();
-          this.selectedSearchIndex = Math.min(
-            this.selectedSearchIndex + 1,
-            this.searchResults.length - 1
-          );
+          this.selectedSearchIndex = Math.min(this.selectedSearchIndex + 1, this.searchResults.length - 1);
           this.scrollSearchResultIntoView();
           return;
         }
@@ -919,22 +819,13 @@ function cashierApp() {
         }
       }
 
-      // ── Enter in amount tendered: complete payment ──────────
-      if (isTenderedInput && event.key === 'Enter') {
-        event.preventDefault();
-        this.processPayment('CASH');
-        return;
-      }
-
-      // ── Tab key: cycle context modes ────────────────────────
+      // ── Tab: Cycle focus between smart input and cart list ─
       if (event.key === 'Tab' && !event.shiftKey && !isInput) {
         event.preventDefault();
         if (this.contextMode === 'scan' && this.cart.length > 0) {
-          // Switch to cart navigation
           this.contextMode = 'cart';
           this.selectedCartIndex = 0;
         } else if (this.contextMode === 'cart') {
-          // Switch back to scan
           this.contextMode = 'scan';
           this.selectedCartIndex = -1;
           this.focusSmartInput();
@@ -942,15 +833,12 @@ function cashierApp() {
         return;
       }
 
-      // ── Cart navigation when not in an input field ──────────
+      // ── Cart Navigation (When not in any input field) ──────
       if (!isInput && this.contextMode === 'cart' && this.cart.length > 0) {
         switch (event.key) {
           case 'ArrowDown':
             event.preventDefault();
-            this.selectedCartIndex = Math.min(
-              this.selectedCartIndex + 1,
-              this.cart.length - 1
-            );
+            this.selectedCartIndex = Math.min(this.selectedCartIndex + 1, this.cart.length - 1);
             this.scrollCartItemIntoView();
             return;
 
@@ -1004,32 +892,28 @@ function cashierApp() {
         }
       }
 
-      // ── Any printable char while not in input → focus smart input ──
+      // ── Auto-redirect printable keystrokes to smart input ──
       if (!isInput && !event.ctrlKey && !event.altKey && !event.metaKey) {
         if (event.key.length === 1) {
-          // Single printable character — redirect to smart input
           this.focusSmartInput();
-          // Don't prevent default — let the character type into the now-focused input
         }
       }
     },
 
-    // ── Scroll helpers ───────────────────────────────────────
     scrollSearchResultIntoView() {
       this.$nextTick(() => {
-        const el = document.querySelector(`.search-result-row.kb-selected`);
+        const el = document.querySelector(`.search-row.kb-selected`);
         if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       });
     },
 
     scrollCartItemIntoView() {
       this.$nextTick(() => {
-        const el = document.querySelector(`.cart-item.kb-selected`);
+        const el = document.querySelector(`.cart-row.kb-selected`);
         if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       });
     },
 
-    // ── Notifications ────────────────────────────────────────
     showNotification(message, type = 'success') {
       this.notification = { show: true, message, type };
       setTimeout(() => {
@@ -1037,9 +921,11 @@ function cashierApp() {
       }, 3000);
     },
 
-    // ── Formatting Helpers ───────────────────────────────────
     formatPrice(n) {
-      return '₱' + Number(n).toFixed(2);
+      return '₱' + Number(n || 0).toLocaleString('en-PH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
     },
 
     formatQty(item) {

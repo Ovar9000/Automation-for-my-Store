@@ -84,25 +84,33 @@ class CartItem(BaseModel):
     unit_price: float
     cost_price: float = 0
     subtotal: float                     # quantity * unit_price
+    pack_label: Optional[str] = None    # E.g. 'Half-Pack (5pcs)', 'Full-Pack (10pcs)'
 
 
 class TransactionCreate(BaseModel):
-    """Schema for submitting a completed sale."""
+    """Schema for submitting a completed sale (supports CASH, GCASH, and atomic UTANG)."""
     items: List[CartItem]
     total_amount: float
-    payment_method: str = "CASH"        # 'CASH' or 'GCASH'
+    payment_method: str = "CASH"        # 'CASH', 'GCASH', or 'UTANG'
     amount_tendered: float = 0          # Cash given by customer
     print_receipt: bool = False
+    customer_name: Optional[str] = None # Required if payment_method is UTANG
+    phone_number: Optional[str] = None  # Optional customer phone
+    notes: Optional[str] = None         # Optional transaction memo
+    amount_paid_now: Optional[float] = 0 # For partial cash payments on Utang
 
 
 class TransactionResponse(BaseModel):
     """Schema for a completed transaction."""
     id: int
+    receipt_number: Optional[str] = None
     transaction_type: str
     total_amount: float
     total_cost: float
     payment_method: str
+    amount_tendered: float = 0
     change: float = 0
+    customer_name: Optional[str] = None
     receipt_printed: bool
     created_at: str
 
@@ -189,3 +197,24 @@ class SettingUpdate(BaseModel):
     """Update a single admin setting."""
     key: str
     value: str
+
+
+# ═══════════════════════════════════════════════════════════════
+# UTANG (DEBT) MODELS
+# ═══════════════════════════════════════════════════════════════
+
+class DebtChargeRequest(BaseModel):
+    """Schema for charging debt to a customer account."""
+    customer_name: str
+    sale_id: Optional[int] = None
+    amount_charged: float
+    amount_paid_now: float = 0
+    phone_number: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class DebtPaymentRequest(BaseModel):
+    """Schema for submitting a debt repayment."""
+    payment_amount: float
+    notes: Optional[str] = None
+

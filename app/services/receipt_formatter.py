@@ -164,9 +164,10 @@ def format_z_report(
     total_gcash_sales: float,
     total_utang_sales: float,
     total_gcash_fees: float,
-    grand_total: float,
-    transaction_count: int,
-    gcash_count: int,
+    total_debt_payments: float = 0.0,
+    grand_total: float = 0.0,
+    transaction_count: int = 0,
+    gcash_count: int = 0,
     timestamp: Optional[datetime] = None,
 ) -> str:
     """
@@ -186,12 +187,16 @@ def format_z_report(
     lines.append(THIN_SEP)
 
     lines.append(left_right("Cash Sales:", format_price(total_cash_sales)))
+    if total_debt_payments > 0:
+        lines.append(left_right("Utang Repayments:", format_price(total_debt_payments)))
     lines.append(left_right("GCash Sales:", format_price(total_gcash_sales)))
-    lines.append(left_right("Utang Sales:", format_price(total_utang_sales)))
-    lines.append(left_right("GCash Fees:", format_price(total_gcash_fees)))
+    lines.append(left_right("Utang Credit Sales:", format_price(total_utang_sales)))
+    lines.append(left_right("GCash Fees Earned:", format_price(total_gcash_fees)))
     lines.append(THIN_SEP)
 
-    lines.append(left_right("GRAND TOTAL", format_price(grand_total)))
+    total_cash_drawer = total_cash_sales + total_debt_payments
+    lines.append(left_right("CASH IN DRAWER:", format_price(total_cash_drawer)))
+    lines.append(left_right("GRAND TOTAL:", format_price(grand_total)))
     lines.append(THIN_SEP)
 
     lines.append(left_right("Transactions:", str(transaction_count)))

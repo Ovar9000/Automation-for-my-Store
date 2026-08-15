@@ -50,7 +50,7 @@ async def daily_report(
     """
 
     # ── Default to today if no date provided ─────────────────────────
-    if not report_date:
+    if not report_date or not isinstance(report_date, str):
         report_date = date.today().isoformat()  # YYYY-MM-DD
 
     # ── Validate date format ─────────────────────────────────────────
@@ -63,7 +63,6 @@ async def daily_report(
         )
 
     # ── Query total sales and COGS for SALE transactions ─────────────
-    # Only count SALE transactions (not GCASH_IN/GCASH_OUT)
     cursor = await db.execute(
         """SELECT
                COALESCE(SUM(total_amount), 0) as total_sales,
@@ -77,8 +76,18 @@ async def daily_report(
     sales_row = await cursor.fetchone()
     sales_data = dict(sales_row)
 
+    # ── Query Debt Payments collected on this date ───────────────────
+    cursor = await db.execute(
+        """SELECT COALESCE(SUM(total_amount), 0) as total_debt_payments
+           FROM transactions
+           WHERE date(created_at, 'localtime') = ?
+             AND transaction_type = 'UTANG_PAYMENT'""",
+        (report_date,)
+    )
+    debt_pay_row = await cursor.fetchone()
+    total_debt_payments = round(dict(debt_pay_row)["total_debt_payments"], 2)
+
     # ── Query GCash fee totals ───────────────────────────────────────
-    # Join gcash_transactions with transactions to filter by date
     cursor = await db.execute(
         """SELECT
                COALESCE(SUM(g.fee), 0) as total_gcash_fees,
@@ -101,6 +110,7 @@ async def daily_report(
         "total_sales": total_sales,
         "total_cost": total_cost,
         "net_profit": net_profit,
+        "total_debt_payments": total_debt_payments,
         "total_gcash_fees": round(gcash_data["total_gcash_fees"], 2),
         "transaction_count": sales_data["transaction_count"],
         "gcash_transaction_count": gcash_data["gcash_transaction_count"],
@@ -119,24 +129,12 @@ async def monthly_report(
 ):
     """
     Generate a monthly income report.
-
-    Business logic:
-    - Same metrics as the daily report, but aggregated for an entire month.
-    - Uses strftime('%Y', ...) and strftime('%m', ...) to filter by year+month.
-    - Useful for the store owner's monthly accounting/budgeting.
-    - If year/month not provided, defaults to the current month.
-
-    The store owner typically checks this at end-of-month to assess:
-    - Total revenue trend (is the store growing?)
-    - Profit margins (are costs eating into sales?)
-    - GCash fee income (is offering GCash services worth it?)
     """
-
     # ── Default to current year/month if not provided ────────────────
     today = date.today()
-    if year is None:
+    if year is None or not isinstance(year, int):
         year = today.year
-    if month is None:
+    if month is None or not isinstance(month, int):
         month = today.month
 
     # ── Validate month range ─────────────────────────────────────────
@@ -147,7 +145,7 @@ async def monthly_report(
         )
 
     # ── Format month as zero-padded string for SQL comparison ────────
-    month_str = f"{month:02d}"  # e.g., "01", "02", ..., "12"
+    month_str = f"{month:02d}"
 
     # ── Query total sales and COGS for the month ─────────────────────
     cursor = await db.execute(
@@ -163,6 +161,18 @@ async def monthly_report(
     )
     sales_row = await cursor.fetchone()
     sales_data = dict(sales_row)
+
+    # ── Query Debt Payments for the month ────────────────────────────
+    cursor = await db.execute(
+        """SELECT COALESCE(SUM(total_amount), 0) as total_debt_payments
+           FROM transactions
+           WHERE strftime('%Y', created_at, 'localtime') = ?
+             AND strftime('%m', created_at, 'localtime') = ?
+             AND transaction_type = 'UTANG_PAYMENT'""",
+        (str(year), month_str)
+    )
+    debt_pay_row = await cursor.fetchone()
+    total_debt_payments = round(dict(debt_pay_row)["total_debt_payments"], 2)
 
     # ── Query GCash fee totals for the month ─────────────────────────
     cursor = await db.execute(
@@ -189,6 +199,7 @@ async def monthly_report(
         "total_sales": total_sales,
         "total_cost": total_cost,
         "net_profit": net_profit,
+        "total_debt_payments": total_debt_payments,
         "total_gcash_fees": round(gcash_data["total_gcash_fees"], 2),
         "transaction_count": sales_data["transaction_count"],
         "gcash_transaction_count": gcash_data["gcash_transaction_count"],

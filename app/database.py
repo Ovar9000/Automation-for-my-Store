@@ -34,27 +34,32 @@ CREATE TABLE IF NOT EXISTS products (
     low_stock_threshold REAL NOT NULL DEFAULT 5,            -- Alert when stock falls below this
     unit                TEXT NOT NULL DEFAULT 'pc',         -- Unit of measure: 'pc', 'kg', 'L', 'ml'
     is_quick_item       INTEGER NOT NULL DEFAULT 0,         -- 1 = show as quick button on cashier
-    quick_button_color  TEXT DEFAULT '#10b981',             -- Hex color for the quick button
+    quick_button_color  TEXT DEFAULT '#3b82f6',             -- Hex color for the quick button
     category            TEXT DEFAULT 'General',             -- Category for grouping
-    half_dozen_price    REAL,                               -- Optional bundle price for 6pcs
-    dozen_price         REAL,                               -- Optional bundle price for 12pcs
     pcs_per_pack        INTEGER DEFAULT 1,                  -- Pack/tie size (e.g. 10pcs per tie, 8pcs per pack)
     bulk_cost_price     REAL,                               -- Total cost paid for 1 bulk pack/tie
     full_pack_price     REAL,                               -- Selling price for 1 full bulk pack/tie
+    half_dozen_price    REAL,                               -- Optional legacy bundle price for 6pcs
+    dozen_price         REAL,                               -- Optional legacy bundle price for 12pcs
     created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- =============================================================
 -- TRANSACTIONS TABLE
--- Each sale or GCash transaction creates one row here
+-- Each sale, GCash, or Utang payment creates one row here
 -- =============================================================
 CREATE TABLE IF NOT EXISTS transactions (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    transaction_type    TEXT NOT NULL DEFAULT 'SALE',       -- 'SALE', 'GCASH_IN', 'GCASH_OUT'
+    receipt_number      TEXT,                               -- Formatted receipt # (e.g. TXN-20260815-A1B2)
+    transaction_type    TEXT NOT NULL DEFAULT 'SALE',       -- 'SALE', 'GCASH_IN', 'GCASH_OUT', 'UTANG_PAYMENT'
     total_amount        REAL NOT NULL DEFAULT 0,            -- Grand total charged to customer
     total_cost          REAL NOT NULL DEFAULT 0,            -- Total COGS for profit calc
-    payment_method      TEXT DEFAULT 'CASH',                -- 'CASH' or 'GCASH'
+    payment_method      TEXT DEFAULT 'CASH',                -- 'CASH', 'GCASH', 'UTANG'
+    amount_tendered     REAL NOT NULL DEFAULT 0,            -- Cash received from customer
+    change_amount       REAL NOT NULL DEFAULT 0,            -- Change returned to customer
+    customer_name       TEXT,                               -- For Utang sales / customer reference
+    notes               TEXT,                               -- Optional notes/memo
     receipt_printed     INTEGER NOT NULL DEFAULT 0,         -- 1 = receipt was printed
     created_at          DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -72,6 +77,7 @@ CREATE TABLE IF NOT EXISTS transaction_items (
     unit_price          REAL NOT NULL DEFAULT 0,            -- Price per unit at sale time
     cost_price          REAL NOT NULL DEFAULT 0,            -- Cost per unit at sale time
     subtotal            REAL NOT NULL DEFAULT 0,            -- quantity * unit_price
+    pack_label          TEXT,                               -- E.g. 'Half-Pack (5pcs)', 'Full-Pack (10pcs)'
     FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
 );
@@ -231,11 +237,15 @@ async def init_db():
         except Exception:
             pass
         try:
-            await db.execute("ALTER TABLE transactions ADD COLUMN amount_tendered REAL DEFAULT 0")
+            await db.execute("ALTER TABLE transactions ADD COLUMN change_amount REAL DEFAULT 0")
         except Exception:
             pass
         try:
-            await db.execute("ALTER TABLE transactions ADD COLUMN change_amount REAL DEFAULT 0")
+            await db.execute("ALTER TABLE transactions ADD COLUMN customer_name TEXT")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE transaction_items ADD COLUMN pack_label TEXT")
         except Exception:
             pass
 

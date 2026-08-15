@@ -1,9 +1,9 @@
 /* ============================================================
-   Sari-Sari POS — Custom Stylesheet (Keyboard-First Fork)
-   Premium dark-theme POS with barcode-first / keyboard-first UX
+   Sari-Sari POS — Minimalist Clean Design System
+   Sleek, modern, distraction-free POS aesthetic with high legibility.
    ============================================================ */
 
-/* ── Base ────────────────────────────────────────────────────── */
+/* ── Base Reset & Typography ─────────────────────────────────── */
 * {
   margin: 0;
   padding: 0;
@@ -11,867 +11,189 @@
 }
 
 html, body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-/* ── Cashier Mode (Dark Theme Terminal) ─────────────────────── */
-body.cashier-mode {
-  height: 100vh;
-  overflow: hidden;
-  background: radial-gradient(circle at top right, #111827 0%, #090d16 60%, #030712 100%);
-  color: #f1f5f9;
-}
-
-/* ── Admin Layout (Light Theme) ─────────────────────────────── */
-body.admin-layout {
-  min-height: 100vh;
   background-color: #f8fafc;
-  color: #1e293b;
+  color: #0f172a;
 }
 
-
-
-/* ── Glassmorphism & Brutalist Panels ───────────────────────── */
-.glass {
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 2px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.5);
+/* ── Scrollbars ──────────────────────────────────────────────── */
+.cart-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.cart-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cart-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.cart-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
-.glass-light {
-  background: rgba(30, 41, 59, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 0.35);
-}
-
-/* ── Sleek Brutalist Buttons ────────────────────────────────── */
-.btn-brutalist-emerald {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: #ffffff;
-  font-weight: 800;
-  border: 2px solid #059669;
-  box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.6);
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.btn-brutalist-emerald:hover {
-  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-  transform: translate(-1px, -1px);
-  box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.7);
-}
-
-.btn-brutalist-emerald:active {
-  transform: translate(2px, 2px);
-  box-shadow: 0px 0px 0px 0px transparent;
-}
-
-.btn-brutalist-blue {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: #ffffff;
-  font-weight: 800;
-  border: 2px solid #1d4ed8;
-  box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.6);
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.btn-brutalist-blue:hover {
-  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
-  transform: translate(-1px, -1px);
-  box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.7);
-}
-
-.btn-brutalist-blue:active {
-  transform: translate(2px, 2px);
-  box-shadow: 0px 0px 0px 0px transparent;
-}
-
-.denom-btn-brutalist {
-  background: #1e293b;
-  color: #ffffff;
-  font-weight: 800;
-  border: 2px solid #475569;
-  border-radius: 12px;
-  padding: 10px 4px;
-  box-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 0.5);
-  transition: all 0.15s ease;
-}
-
-.denom-btn-brutalist:hover {
-  background: #334155;
-  border-color: #10b981;
-  color: #10b981;
-  transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0px 0px rgba(16, 185, 129, 0.3);
-}
-
-.denom-btn-brutalist:active {
-  transform: translate(1px, 1px);
-  box-shadow: 0px 0px 0px 0px transparent;
-}
-
-.kbd-brutalist {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: #0f172a;
-  color: #34d399;
-  border: 1.5px solid #334155;
-  font-family: monospace;
-  font-weight: 800;
-  box-shadow: 1px 1px 0px 0px rgba(0,0,0,0.5);
-}
-
-/* ── Cart Item Animation ─────────────────────────────────────── */
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.cart-item {
-  animation: slideInRight 0.3s ease-out;
-}
-
-/* ── Total Pulse ─────────────────────────────────────────────── */
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-}
-
-.total-pulse {
-  animation: pulse 0.4s ease;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   KEYBOARD-FIRST — Hero Barcode Input
-   ═══════════════════════════════════════════════════════════════ */
-
-/* Ready-to-Scan pulsing glow when focused */
-@keyframes scanPulse {
-  0%, 100% {
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25),
-                0 0 20px rgba(16, 185, 129, 0.08);
-  }
-  50% {
-    box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.45),
-                0 0 30px rgba(16, 185, 129, 0.15);
-  }
-}
-
-#smart-input {
-  transition: all 0.2s ease;
-}
-
-#smart-input:focus {
-  border-color: #10b981;
-  outline: none;
-  animation: scanPulse 2s ease-in-out infinite;
-}
-
-/* Scan status indicator dot */
-.scan-status {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #10b981;
-  animation: scanStatusPulse 2s ease-in-out infinite;
-  flex-shrink: 0;
-}
-
-@keyframes scanStatusPulse {
-  0%, 100% { opacity: 0.4; transform: scale(0.9); }
-  50% { opacity: 1; transform: scale(1.15); }
-}
-
-.scan-status.inactive {
-  background: #475569;
-  animation: none;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   KEYBOARD-FIRST — Search Results (Keyboard Navigable)
-   ═══════════════════════════════════════════════════════════════ */
-
-.search-results-panel {
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(30, 41, 59, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  overflow: hidden;
-}
-
-.search-result-row {
-  padding: 0.625rem 1rem;
-  transition: background 0.12s ease;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  cursor: pointer;
-}
-
-.search-result-row:last-child {
-  border-bottom: none;
-}
-
-.search-result-row:hover {
-  background: rgba(16, 185, 129, 0.08);
-}
-
-/* Keyboard-selected highlight */
-.search-result-row.kb-selected {
-  background: rgba(16, 185, 129, 0.15);
-  border-left: 3px solid #10b981;
-  padding-left: calc(1rem - 3px);
-}
-
-.search-result-row.kb-selected .sr-name {
-  color: #6ee7b7;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   KEYBOARD-FIRST — Cart Item Keyboard Selection
-   ═══════════════════════════════════════════════════════════════ */
-
-/* Keyboard-selected cart item highlight */
-.cart-item.kb-selected {
-  background: rgba(16, 185, 129, 0.12) !important;
-  border-left: 3px solid #10b981 !important;
-  border-color: rgba(16, 185, 129, 0.25);
-}
-
-.cart-item.kb-selected .cart-item-name {
-  color: #6ee7b7;
-}
-
-/* Remove button — always visible (keyboard-first: no hover dependency) */
-.remove-btn {
-  width: 26px;
-  height: 26px;
+/* ── Minimal Keyboard Cap Badges ─────────────────────────────── */
+.kbd-clean {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 2px 6px;
   border-radius: 6px;
-  border: none;
-  background: rgba(239, 68, 68, 0.12);
-  color: #f87171;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-size: 0.7rem;
-  flex-shrink: 0;
-  opacity: 0.6;
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
 }
 
-.remove-btn:hover,
-.cart-item.kb-selected .remove-btn {
-  opacity: 1;
-  background: rgba(239, 68, 68, 0.25);
-  color: #fca5a5;
+.kbd-clean-primary {
+  background-color: #e0e7ff;
+  color: #4338ca;
+  border-color: #c7d2fe;
 }
 
-.remove-btn:hover {
-  transform: scale(1.1);
+.kbd-clean-emerald {
+  background-color: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
 }
 
-
-/* ═══════════════════════════════════════════════════════════════
-   KEYBOARD-FIRST — Quick Items Collapsible Strip
-   ═══════════════════════════════════════════════════════════════ */
-
-.quick-strip {
-  overflow: hidden;
-  transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease;
-  max-height: 200px;
-  opacity: 1;
-}
-
-.quick-strip.collapsed {
-  max-height: 0;
-  opacity: 0;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-}
-
-.quick-strip-btn {
-  transition: all 0.15s ease;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  position: relative;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.quick-strip-btn::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.10) 0%, transparent 60%);
-  pointer-events: none;
-}
-
-.quick-strip-btn:hover {
-  transform: scale(1.06);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
-}
-
-.quick-strip-btn:active {
-  transform: scale(0.96);
-}
-
-.quick-strip-toggle {
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-}
-
-.quick-strip-toggle:hover {
-  color: #10b981;
-}
-
-.quick-strip-toggle .chevron {
-  display: inline-block;
-  transition: transform 0.3s ease;
-}
-
-.quick-strip-toggle .chevron.rotated {
-  transform: rotate(180deg);
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   DENOMINATION BUTTONS (Quick Tender)
-   ═══════════════════════════════════════════════════════════════ */
-
-.denom-btn {
-  padding: 0.35rem 0.6rem;
-  border-radius: 6px;
-  font-size: 0.7rem;
+/* ── Context Mode Pill ───────────────────────────────────────── */
+.context-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
   font-weight: 700;
-  font-family: 'Inter', monospace;
-  background: rgba(51, 65, 85, 0.6);
-  border: 1px solid rgba(100, 116, 139, 0.3);
-  color: #94a3b8;
+  letter-spacing: 0.025em;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+}
+
+.status-indicator-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10b981;
+}
+
+.status-indicator-dot.pulse {
+  animation: pulseDot 2s infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* ── Search Results Navigation Selection ─────────────────────── */
+.search-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
   cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
+  transition: background-color 0.15s ease;
 }
 
-.denom-btn:hover {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: rgba(16, 185, 129, 0.3);
-  color: #6ee7b7;
+.search-row:hover,
+.search-row.kb-selected {
+  background-color: #f1f5f9;
 }
 
-.denom-btn:active {
-  transform: scale(0.95);
+.search-row.kb-selected {
+  border-left: 3px solid #3b82f6;
 }
 
+/* ── Cart Item Row ───────────────────────────────────────────── */
+.cart-row {
+  border: 1px solid #f1f5f9;
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
 
-/* ═══════════════════════════════════════════════════════════════
-   LEGACY / SHARED STYLES (preserved from original)
-   ═══════════════════════════════════════════════════════════════ */
+.cart-row:hover,
+.cart-row.kb-selected {
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+}
 
-/* ── Barcode Input Glow (fallback for #barcode-input if still used) ── */
-#barcode-input:focus {
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
-  border-color: #10b981;
-  outline: none;
+.cart-row.kb-selected {
+  border-color: #3b82f6;
+  background-color: #f8fafc;
+}
+
+/* ── Notification Toast ──────────────────────────────────────── */
+.notification-toast {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+}
+
+.notification-toast.success {
+  border-left: 4px solid #10b981;
+}
+
+.notification-toast.error {
+  border-left: 4px solid #ef4444;
+}
+
+.notification-toast.info {
+  border-left: 4px solid #3b82f6;
 }
 
 /* ── Modal Backdrop ──────────────────────────────────────────── */
-.modal-backdrop {
-  background: rgba(0, 0, 0, 0.6);
+.modal-backdrop-clean {
+  background-color: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+/* ── Total Pulse Animation ───────────────────────────────────── */
+@keyframes totalPulseClean {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.03); color: #047857; }
+  100% { transform: scale(1); }
 }
 
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.92) translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+.total-pulse {
+  animation: totalPulseClean 0.3s ease-out;
 }
 
-.modal-backdrop {
-  animation: fadeIn 0.2s ease-out;
-}
-
-.modal-content {
-  animation: scaleIn 0.25s ease-out;
-}
-
-/* ── Custom Dark Scrollbar ───────────────────────────────────── */
-.cart-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.cart-scroll::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.4);
-  border-radius: 3px;
-}
-
-.cart-scroll::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.5);
-  border-radius: 3px;
-}
-
-.cart-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.7);
-}
-
-/* Firefox */
-.cart-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(100, 116, 139, 0.5) rgba(15, 23, 42, 0.4);
-}
-
-/* ── Toggle Switch (Receipt Print) ───────────────────────────── */
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 44px;
-  height: 24px;
-  flex-shrink: 0;
-}
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-  position: absolute;
-}
-
-.toggle-slider {
-  position: absolute;
-  inset: 0;
-  background: #334155;
-  border-radius: 24px;
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-.toggle-slider::before {
-  content: '';
-  position: absolute;
+/* ── Spinner ─────────────────────────────────────────────────── */
+.clean-spinner {
   width: 18px;
   height: 18px;
-  left: 3px;
-  bottom: 3px;
-  background: #94a3b8;
-  border-radius: 50%;
-  transition: all 0.3s ease;
-}
-
-.toggle-switch input:checked + .toggle-slider {
-  background: #10b981;
-}
-
-.toggle-switch input:checked + .toggle-slider::before {
-  transform: translateX(20px);
-  background: #ffffff;
-}
-
-.toggle-switch input:focus + .toggle-slider {
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
-}
-
-/* ── Notification ────────────────────────────────────────────── */
-@keyframes slideInFromTop {
-  from {
-    opacity: 0;
-    transform: translateX(20px) translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) translateY(0);
-  }
-}
-
-@keyframes slideOut {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-}
-
-.notification {
-  animation: slideInFromTop 0.35s ease-out;
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  z-index: 9999;
-  padding: 0.75rem 1.25rem;
-  border-radius: 12px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-  max-width: 380px;
-  pointer-events: auto;
-}
-
-.notification.success {
-  background: linear-gradient(135deg, #065f46, #047857);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: #d1fae5;
-}
-
-.notification.error {
-  background: linear-gradient(135deg, #7f1d1d, #991b1b);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #fecaca;
-}
-
-.notification.info {
-  background: linear-gradient(135deg, #1e3a5f, #1e40af);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  color: #bfdbfe;
-}
-
-/* ── Search Dropdown (legacy, kept for compatibility) ────────── */
-.search-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 50;
-  max-height: 240px;
-  overflow-y: auto;
-  border-radius: 0 0 12px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-top: none;
-  background: rgba(30, 41, 59, 0.95);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
-
-.search-dropdown::-webkit-scrollbar {
-  width: 4px;
-}
-
-.search-dropdown::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.4);
-  border-radius: 2px;
-}
-
-.search-item {
-  padding: 0.625rem 1rem;
-  cursor: pointer;
-  transition: background 0.15s ease;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.search-item:last-child {
-  border-bottom: none;
-}
-
-.search-item:hover {
-  background: rgba(16, 185, 129, 0.12);
-}
-
-/* ── Inline Quantity Edit ────────────────────────────────────── */
-.qty-edit-input {
-  width: 60px;
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid #10b981;
-  border-radius: 6px;
-  color: #e2e8f0;
-  text-align: center;
-  padding: 2px 4px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  outline: none;
-}
-
-.qty-edit-input:focus {
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
-}
-
-/* ── Badge ───────────────────────────────────────────────────── */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 11px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-/* ── GCash Tab Toggle ────────────────────────────────────────── */
-.gcash-tab {
-  cursor: pointer;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  text-align: center;
-  flex: 1;
-}
-
-.gcash-tab.active {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  color: white;
-  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
-}
-
-.gcash-tab:not(.active) {
-  background: rgba(51, 65, 85, 0.5);
-  color: #94a3b8;
-}
-
-.gcash-tab:not(.active):hover {
-  background: rgba(51, 65, 85, 0.8);
-  color: #cbd5e1;
-}
-
-/* ── GCash Transaction Type Toggle ───────────────────────────── */
-.tx-type-btn {
-  cursor: pointer;
-  padding: 0.5rem 1.25rem;
-  border-radius: 8px;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  flex: 1;
-  text-align: center;
-}
-
-.tx-type-btn.active-in {
-  background: linear-gradient(135deg, #10b981, #059669);
-  color: white;
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-}
-
-.tx-type-btn.active-out {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: white;
-  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
-}
-
-.tx-type-btn:not(.active-in):not(.active-out) {
-  background: rgba(51, 65, 85, 0.5);
-  color: #94a3b8;
-}
-
-.tx-type-btn:not(.active-in):not(.active-out):hover {
-  background: rgba(51, 65, 85, 0.8);
-  color: #cbd5e1;
-}
-
-/* ── Keyboard Shortcut Badge ─────────────────────────────────── */
-.kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.625rem;
-  font-weight: 600;
-  font-family: 'Inter', monospace;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #94a3b8;
-  line-height: 1;
-  letter-spacing: 0.02em;
-}
-
-/* ── Focus Styles ────────────────────────────────────────────── */
-input:focus, button:focus-visible {
-  outline: none;
-}
-
-button:focus-visible {
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4);
-}
-
-/* ── Loading Spinner ─────────────────────────────────────────── */
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top-color: #10b981;
+  border: 2px solid #e2e8f0;
+  border-top-color: currentColor;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
 
-/* ── Reduced Motion ──────────────────────────────────────────── */
-@media (prefers-reduced-motion: reduce) {
-  .cart-item,
-  .total-pulse,
-  .modal-backdrop,
-  .modal-content,
-  .notification {
-    animation: none !important;
-  }
-
-  .quick-strip-btn,
-  .toggle-slider,
-  .toggle-slider::before,
-  .gcash-tab,
-  .tx-type-btn,
-  .search-result-row,
-  .search-item {
-    transition: none !important;
-  }
-
-  .quick-strip-btn:hover {
-    transform: none;
-  }
-
-  #smart-input:focus {
-    animation: none;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
-  }
-
-  .scan-status {
-    animation: none;
-    opacity: 1;
-  }
-
-  .spinner {
-    animation-duration: 1.2s;
-  }
-}
-
-/* ── Utility: Truncate ───────────────────────────────────────── */
-.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* ── Empty Cart State ────────────────────────────────────────── */
-.empty-cart-icon {
-  font-size: 3rem;
-  opacity: 0.3;
-}
-
-/* ── Scan Line Animation ─────────────────────────────────────── */
-@keyframes scanLineMove {
-  0% {
-    top: 0%;
-  }
-  50% {
-    top: 100%;
-  }
-  100% {
-    top: 0%;
-  }
-}
-
-@keyframes fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.animate-fade {
-  animation: fade 0.35s ease-out;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   KEYBOARD-FIRST — Context Mode Indicator
-   ═══════════════════════════════════════════════════════════════ */
-
-.context-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.2rem 0.6rem;
-  border-radius: 6px;
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-.context-indicator.mode-scan {
-  background: rgba(16, 185, 129, 0.12);
-  color: #6ee7b7;
-  border: 1px solid rgba(16, 185, 129, 0.2);
-}
-
-.context-indicator.mode-search {
-  background: rgba(59, 130, 246, 0.12);
-  color: #93c5fd;
-  border: 1px solid rgba(59, 130, 246, 0.2);
-}
-
-.context-indicator.mode-cart {
-  background: rgba(251, 191, 36, 0.12);
-  color: #fcd34d;
-  border: 1px solid rgba(251, 191, 36, 0.2);
-}
-
-.context-indicator.mode-pay {
-  background: rgba(168, 85, 247, 0.12);
-  color: #c4b5fd;
-  border: 1px solid rgba(168, 85, 247, 0.2);
-}
-
-/* ── Quick-access scrollbar ──────────────────────────────────── */
-.quick-scroll::-webkit-scrollbar {
-  height: 4px;
-}
-
-.quick-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.quick-scroll::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.3);
-  border-radius: 2px;
-}
-
-.quick-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
