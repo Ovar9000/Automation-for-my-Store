@@ -1,0 +1,176 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Jar QR & Pack Labels - Sari-Sari Store POS{% endblock %}
+{% block alpine_app %}x-data="labelsApp()"{% endblock %}
+
+{% block extra_head %}
+  <!-- QRCode.js CDN with offline fallback -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="/static/js/labels.js"></script>
+  <style>
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #print-area, #print-area * {
+        visibility: visible;
+      }
+      #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 58mm;
+        margin: 0;
+        padding: 4px;
+      }
+      nav, header, button, .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+      <div>
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Jar QR & Label Generator</h1>
+        <p class="text-slate-500 mt-1">Generate and print 58mm thermal sticker labels for loose refill jars, dispensers, and hanging mother-pack ties.</p>
+      </div>
+      <div class="flex gap-2">
+        <button @click="printAllLabels()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-2 text-xs cursor-pointer">
+          <span>🖨️ Print Selected Stickers (58mm)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Instruction Card -->
+    <div class="bg-indigo-50/70 border border-indigo-200/80 rounded-2xl p-5 flex items-start gap-4">
+      <span class="text-2xl">💡</span>
+      <div class="text-xs text-indigo-900 space-y-1">
+        <p class="font-bold text-sm">How the Jar QR Refill System works:</p>
+        <p>1. <strong>Print Sticker</strong>: Print thermal QR labels and stick them directly onto your physical store candy jars, sugar bins, cooking oil containers, and hanging sachet ties.</p>
+        <p>2. <strong>Instant Scan</strong>: At the cashier terminal, point your barcode scanner at the jar's QR code. The POS instantly registers the exact refill portion and price without typing or searching!</p>
+      </div>
+    </div>
+
+    <!-- Label Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <template x-for="item in labelItems" :key="item.id">
+        <div class="bg-white rounded-2xl shadow-xs border border-slate-200/80 p-5 flex flex-col justify-between space-y-4">
+          
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <span class="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
+                    :class="item.jar_code ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'"
+                    x-text="item.jar_code ? '🫙 Jar Refill QR' : '📦 Mother-Pack Barcode'"></span>
+              <h3 class="font-bold text-slate-900 text-base mt-1" x-text="item.name"></h3>
+              <p class="text-xs text-slate-400 mt-0.5" x-text="'Category: ' + item.category"></p>
+            </div>
+            
+            <div class="p-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center min-w-[70px] min-h-[70px]"
+                 :id="'qr-preview-' + item.id">
+              <!-- QR or Barcode Preview rendered here -->
+            </div>
+          </div>
+
+          <!-- Pricing & Code Spec -->
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs space-y-1 font-mono">
+            <div class="flex justify-between text-slate-600">
+              <span>Identifier Code:</span>
+              <span class="font-bold text-slate-900" x-text="item.jar_code || item.pack_barcode || item.barcode || 'None'"></span>
+            </div>
+            <div class="flex justify-between text-slate-600" x-show="item.jar_code">
+              <span>Refill Portion / Price:</span>
+              <span class="font-bold text-emerald-700" x-text="`${item.refill_qty || 1}${item.unit} — ₱${Number(item.refill_price || item.selling_price).toFixed(2)}`"></span>
+            </div>
+            <div class="flex justify-between text-slate-600" x-show="item.pack_barcode">
+              <span>Full Pack Size / Price:</span>
+              <span class="font-bold text-indigo-700" x-text="`${item.pcs_per_pack || 10}pcs Pack — ₱${Number(item.full_pack_price || (item.selling_price * item.pcs_per_pack)).toFixed(2)}`"></span>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+            <button @click="openQuickEdit(item)"
+                    class="text-xs font-semibold text-slate-600 hover:text-indigo-600 cursor-pointer">
+              ⚙️ Edit Codes
+            </button>
+            <button @click="printSingleLabel(item)"
+                    class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs">
+              <span>🖨️ Print Label</span>
+            </button>
+          </div>
+
+        </div>
+      </template>
+    </div>
+
+    <!-- Hidden Printable 58mm Thermal Sticker Section -->
+    <div id="print-area" class="hidden">
+      <template x-if="printingItem">
+        <div style="width: 54mm; font-family: monospace; text-align: center; padding: 4px; border: 1px dashed #ccc;">
+          <p style="font-size: 11px; font-weight: bold; margin: 0;" x-text="printingItem.name"></p>
+          <p style="font-size: 9px; color: #555; margin: 2px 0;" x-text="printingItem.jar_code ? 'JAR REFILL CODE' : 'MOTHER-PACK BARCODE'"></p>
+          <div id="print-qr-target" style="display: flex; justify-content: center; margin: 6px 0;"></div>
+          <p style="font-size: 10px; font-weight: bold; margin: 2px 0;" x-text="printingItem.jar_code || printingItem.pack_barcode"></p>
+          <p style="font-size: 13px; font-weight: 800; margin: 2px 0;" x-text="'₱' + Number(printingItem.refill_price || printingItem.full_pack_price || printingItem.selling_price).toFixed(2)"></p>
+          <p style="font-size: 8px; margin: 0;">Sari-Sari Store POS</p>
+        </div>
+      </template>
+    </div>
+
+    <!-- Quick Edit Modal -->
+    <div x-show="showEditModal"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs"
+         style="display: none;">
+      <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl border border-slate-200" @click.stop>
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <h3 class="font-bold text-slate-900 text-base" x-text="'Configure ' + editForm.name"></h3>
+          <button @click="showEditModal = false" class="text-slate-400 hover:text-slate-700 font-bold">✕</button>
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="font-bold text-slate-700 mb-1 block">Jar / Dispenser QR Identifier</label>
+            <input type="text" x-model="editForm.jar_code" placeholder="e.g. JAR:SUGAR-500G"
+                   class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800">
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="font-bold text-slate-700 mb-1 block">Refill Price (₱)</label>
+              <input type="number" step="0.01" min="0" x-model.number="editForm.refill_price"
+                     class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800">
+            </div>
+            <div>
+              <label class="font-bold text-slate-700 mb-1 block">Refill Qty (<span x-text="editForm.unit"></span>)</label>
+              <input type="number" step="0.01" min="0.01" x-model.number="editForm.refill_qty"
+                     class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800">
+            </div>
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 mb-1 block">Mother-Pack / Outer Tie Barcode</label>
+            <input type="text" x-model="editForm.pack_barcode" placeholder="e.g. 4800016121005-PACK"
+                   class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800">
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="font-bold text-slate-700 mb-1 block">Pack Size (pcs)</label>
+              <input type="number" min="1" x-model.number="editForm.pcs_per_pack"
+                     class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800">
+            </div>
+            <div>
+              <label class="font-bold text-slate-700 mb-1 block">Full Pack Price (₱)</label>
+              <input type="number" step="0.01" min="0" x-model.number="editForm.full_pack_price"
+                     class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800">
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button @click="showEditModal = false" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700">Cancel</button>
+          <button @click="saveQuickEdit()" class="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-xs">Save Configuration</button>
+        </div>
+      </div>
+    </div>
+{% endblock %}

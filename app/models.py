@@ -16,12 +16,16 @@ from datetime import datetime
 class ProductCreate(BaseModel):
     """Schema for creating a new product."""
     barcode: Optional[str] = None
+    pack_barcode: Optional[str] = None
+    jar_code: Optional[str] = None
+    refill_price: Optional[float] = None
+    refill_qty: Optional[float] = 1.0
     name: str
     cost_price: float = 0
     selling_price: float = 0
     stock_qty: float = 0
     low_stock_threshold: float = 5
-    unit: str = "pc"                    # 'pc', 'kg', 'L', 'ml'
+    unit: str = "pc"                    # 'pc', 'kg', 'L', 'ml', 'g'
     is_quick_item: bool = False
     quick_button_color: str = "#10b981"
     category: str = "General"
@@ -35,6 +39,10 @@ class ProductCreate(BaseModel):
 class ProductUpdate(BaseModel):
     """Schema for updating a product (all fields optional)."""
     barcode: Optional[str] = None
+    pack_barcode: Optional[str] = None
+    jar_code: Optional[str] = None
+    refill_price: Optional[float] = None
+    refill_qty: Optional[float] = None
     name: Optional[str] = None
     cost_price: Optional[float] = None
     selling_price: Optional[float] = None
@@ -54,7 +62,11 @@ class ProductUpdate(BaseModel):
 class ProductResponse(BaseModel):
     """Schema for a product in API responses."""
     id: int
-    barcode: Optional[str]
+    barcode: Optional[str] = None
+    pack_barcode: Optional[str] = None
+    jar_code: Optional[str] = None
+    refill_price: Optional[float] = None
+    refill_qty: Optional[float] = 1.0
     name: str
     cost_price: float
     selling_price: float
@@ -69,7 +81,32 @@ class ProductResponse(BaseModel):
     pcs_per_pack: Optional[int] = 1
     bulk_cost_price: Optional[float] = None
     full_pack_price: Optional[float] = None
-    is_low_stock: bool = False          # Computed field
+    is_low_stock: bool = False
+
+
+# ═══════════════════════════════════════════════════════════════
+# SCAN RESOLUTION MODELS
+# ═══════════════════════════════════════════════════════════════
+
+class SmartScanResponse(BaseModel):
+    """Result of scanning an item barcode, mother-pack barcode, or Jar QR code."""
+    scan_type: str                      # 'unit' | 'mother_pack' | 'jar_refill'
+    product: ProductResponse
+    quantity_to_add: float
+    effective_unit_price: float
+    effective_subtotal: float
+    pack_label: Optional[str] = None
+    message: str
+
+
+class JarQRLabelItem(BaseModel):
+    """Payload for generating printable 58mm thermal sticker labels."""
+    product_id: int
+    jar_code: str
+    product_name: str
+    refill_price: float
+    refill_qty: float
+    unit: str
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -80,11 +117,11 @@ class CartItem(BaseModel):
     """A single item in the cashier's cart."""
     product_id: int
     product_name: str
-    quantity: float = 1.0               # Decimal for weighted items
+    quantity: float = 1.0               # Decimal for weighted / refill items or pcs
     unit_price: float
     cost_price: float = 0
     subtotal: float                     # quantity * unit_price
-    pack_label: Optional[str] = None    # E.g. 'Half-Pack (5pcs)', 'Full-Pack (10pcs)'
+    pack_label: Optional[str] = None    # E.g. 'Full-Pack (10pcs)', 'Jar Refill'
 
 
 class TransactionCreate(BaseModel):
@@ -158,6 +195,7 @@ class DailyReportResponse(BaseModel):
     total_sales: float                  # Gross revenue from sales
     total_cost: float                   # Total COGS
     net_profit: float                   # Sales - COGS
+    total_debt_payments: float = 0
     total_gcash_fees: float             # GCash fees collected
     transaction_count: int
     gcash_transaction_count: int
@@ -170,8 +208,10 @@ class MonthlyReportResponse(BaseModel):
     total_sales: float
     total_cost: float
     net_profit: float
+    total_debt_payments: float = 0
     total_gcash_fees: float
     transaction_count: int
+    gcash_transaction_count: int
 
 
 class TopProductResponse(BaseModel):
@@ -185,12 +225,19 @@ class TopProductResponse(BaseModel):
 
 
 # ═══════════════════════════════════════════════════════════════
-# ADMIN MODELS
+# ADMIN & AUTH MODELS
 # ═══════════════════════════════════════════════════════════════
 
 class AdminLoginRequest(BaseModel):
     """Admin login payload."""
     password: str
+
+
+class AdminAuthResponse(BaseModel):
+    """Admin authentication result with secure session token."""
+    success: bool
+    token: Optional[str] = None
+    message: str
 
 
 class SettingUpdate(BaseModel):
@@ -217,4 +264,5 @@ class DebtPaymentRequest(BaseModel):
     """Schema for submitting a debt repayment."""
     payment_amount: float
     notes: Optional[str] = None
+
 

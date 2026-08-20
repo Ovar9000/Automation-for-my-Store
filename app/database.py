@@ -1,46 +1,91 @@
 """
 Sari-Sari Store POS — Database Manager
 ========================================
-Handles SQLite connection, schema creation, and WAL mode.
+Handles SQLite connection, schema creation, WAL mode, migrations,
+and cryptographic security utilities.
 The database file is stored at data/store.db relative to project root.
 
 Usage:
-    from app.database import get_db, init_db
+    from app.database import get_db, init_db, hash_password, verify_password
 """
 
 import aiosqlite
+import hashlib
 import os
+import secrets
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # ─── Database file path ──────────────────────────────────────────────
-# Store the DB in the data/ directory so it's easy to find and backup
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "data" / "store.db"
+
+
+# ─── Cryptographic Password Utilities ────────────────────────────────
+def hash_password(plain_password: str) -> str:
+    """Hash a password using PBKDF2-HMAC-SHA256 with 100,000 iterations and random salt."""
+    salt = secrets.token_hex(16)
+    key = hashlib.pbkdf2_hmac(
+        "sha256",
+        plain_password.encode("utf-8"),
+        salt.encode("utf-8"),
+        100000,
+    )
+    return f"pbkdf2_sha256$100000${salt}${key.hex()}"
+
+
+def verify_password(plain_password: str, stored_hash: str) -> bool:
+    """Verify a plain password against stored hash (or legacy plaintext with auto-upgrade)."""
+    if not stored_hash:
+        return False
+    if not stored_hash.startswith("pbkdf2_sha256$"):
+        # Legacy plain-text check for backwards compatibility
+        return plain_password == stored_hash
+
+    try:
+        parts = stored_hash.split("$")
+        if len(parts) != 4:
+            return False
+        _, iterations_str, salt, expected_hash = parts
+        iterations = int(iterations_str)
+        key = hashlib.pbkdf2_hmac(
+            "sha256",
+            plain_password.encode("utf-8"),
+            salt.encode("utf-8"),
+            iterations,
+        )
+        return secrets.compare_digest(key.hex(), expected_hash)
+    except Exception:
+        return False
 
 
 # ─── SQL Schema ──────────────────────────────────────────────────────
 SCHEMA_SQL = """
 -- =============================================================
 -- PRODUCTS TABLE
--- Stores all inventory items (barcoded, weighted, quick items)
+-- Stores all inventory items (barcoded, weighted, packs, jar refills)
 -- =============================================================
 CREATE TABLE IF NOT EXISTS products (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    barcode             TEXT UNIQUE,                        -- Optional, nullable for non-barcoded items
+    barcode             TEXT UNIQUE,                        -- Single unit barcode (e.g. 1 sachet)
+    pack_barcode        TEXT UNIQUE,                        -- Mother-pack / hanging tie barcode
+    jar_code            TEXT UNIQUE,                        -- Jar / Dispenser QR code (e.g. JAR-SUGAR-100G)
+    refill_price        REAL,                               -- Selling price per refill
+    refill_qty          REAL DEFAULT 1.0,                   -- Stock quantity deducted per refill
     name                TEXT NOT NULL,                      -- Display name
     cost_price          REAL NOT NULL DEFAULT 0,            -- Purchase/cost price per unit
     selling_price       REAL NOT NULL DEFAULT 0,            -- Selling price per unit
-    stock_qty           REAL NOT NULL DEFAULT 0,            -- Current stock (decimal for kg/liters)
+    stock_qty           REAL NOT NULL DEFAULT 0,            -- Current stock (decimal for kg/liters/pcs)
     low_stock_threshold REAL NOT NULL DEFAULT 5,            -- Alert when stock falls below this
-    unit                TEXT NOT NULL DEFAULT 'pc',         -- Unit of measure: 'pc', 'kg', 'L', 'ml'
-    is_quick_item       INTEGER NOT NULL DEFAULT 0,         -- 1 = show as quick button on cashier
-    quick_button_color  TEXT DEFAULT '#3b82f6',             -- Hex color for the quick button
+    unit                TEXT NOT NULL DEFAULT 'pc',         -- Unit of measure: 'pc', 'kg', 'L', 'ml', 'g'
+    is_quick_item       INTEGER NOT NULL DEFAULT 0,         -- 1 = quick button item (legacy support)
+    quick_button_color  TEXT DEFAULT '#3b82f6',             -- Hex color
     category            TEXT DEFAULT 'General',             -- Category for grouping
-    pcs_per_pack        INTEGER DEFAULT 1,                  -- Pack/tie size (e.g. 10pcs per tie, 8pcs per pack)
+    pcs_per_pack        INTEGER DEFAULT 1,                  -- Pack/tie size (e.g. 10pcs per tie)
     bulk_cost_price     REAL,                               -- Total cost paid for 1 bulk pack/tie
     full_pack_price     REAL,                               -- Selling price for 1 full bulk pack/tie
-    half_dozen_price    REAL,                               -- Optional legacy bundle price for 6pcs
-    dozen_price         REAL,                               -- Optional legacy bundle price for 12pcs
+    half_dozen_price    REAL,                               -- Legacy bundle price
+    dozen_price         REAL,                               -- Legacy bundle price
     created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -77,7 +122,7 @@ CREATE TABLE IF NOT EXISTS transaction_items (
     unit_price          REAL NOT NULL DEFAULT 0,            -- Price per unit at sale time
     cost_price          REAL NOT NULL DEFAULT 0,            -- Cost per unit at sale time
     subtotal            REAL NOT NULL DEFAULT 0,            -- quantity * unit_price
-    pack_label          TEXT,                               -- E.g. 'Half-Pack (5pcs)', 'Full-Pack (10pcs)'
+    pack_label          TEXT,                               -- E.g. 'Full-Pack (10pcs)', 'Jar Refill'
     FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
 );
@@ -103,12 +148,18 @@ CREATE TABLE IF NOT EXISTS gcash_transactions (
 );
 
 -- =============================================================
--- ADMIN SETTINGS TABLE
--- Key-value store for app configuration
+-- ADMIN SETTINGS & AUTH SESSIONS TABLE
+-- Key-value store for app configuration and active sessions
 -- =============================================================
 CREATE TABLE IF NOT EXISTS admin_settings (
     key                 TEXT PRIMARY KEY,
     value               TEXT
+);
+
+CREATE TABLE IF NOT EXISTS admin_sessions (
+    token               TEXT PRIMARY KEY,
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at          DATETIME
 );
 
 -- =============================================================
@@ -156,96 +207,73 @@ DEFAULT_SETTINGS = {
     "store_name": "Sari-Sari Store",
     "store_address": "",
     "store_phone": "",
-    "admin_password": "admin123",        # Default password — change immediately!
+    "admin_password": hash_password("admin123"), # Secure default password hash
     "receipt_enabled": "1",
-    "gcash_fee_per_thousand": "10",       # Fee per 1000 PHP block
+    "gcash_fee_per_thousand": "10",              # Fee per 1000 PHP block
+    "cloud_sync_enabled": "0",
+    "cloud_sync_endpoint": "",
+    "cloud_api_key": ""
 }
 
-# ─── Sample quick items for first-run demo ───────────────────────────
+# ─── Sample products for first-run demo ──────────────────────────────
 SAMPLE_PRODUCTS = [
-    # (barcode, name, cost, sell, stock, threshold, unit, is_quick, color, category)
-    (None, "Gasoline (per Liter)", 55.00, 62.00, 100.0, 20.0, "L", 1, "#ef4444", "Fuel"),
-    (None, "Rice (per Kilo)", 38.00, 45.00, 50.0, 10.0, "kg", 1, "#f59e0b", "Staples"),
-    (None, "Candy", 0.50, 1.00, 200.0, 50.0, "pc", 1, "#ec4899", "Snacks"),
-    (None, "Softdrinks (bottle)", 12.00, 15.00, 48.0, 12.0, "pc", 1, "#3b82f6", "Beverages"),
-    (None, "Feeds (per Kilo)", 28.00, 35.00, 100.0, 20.0, "kg", 1, "#8b5cf6", "Feeds"),
-    (None, "Pork (per Kilo)", 200.00, 250.00, 20.0, 5.0, "kg", 1, "#f97316", "Meat"),
-    ("4800016121005", "Lucky Me Pancit Canton", 9.00, 12.00, 100.0, 20.0, "pc", 0, "#10b981", "Noodles"),
-    ("4800361413022", "Kopiko Brown 25g", 5.00, 7.00, 80.0, 15.0, "pc", 0, "#10b981", "Beverages"),
+    # (barcode, pack_barcode, jar_code, refill_price, refill_qty, name, cost, sell, stock, threshold, unit, is_quick, color, category, pcs_per_pack, bulk_cost, full_pack)
+    (None, None, "JAR:GAS-1L", 62.00, 1.0, "Gasoline Refill (1L Bottle)", 55.00, 62.00, 100.0, 20.0, "L", 0, "#ef4444", "Fuel", 1, None, None),
+    (None, None, "JAR:RICE-1KG", 45.00, 1.0, "Sinandomeng Rice (1 Kilo)", 38.00, 45.00, 150.0, 20.0, "kg", 0, "#f59e0b", "Staples", 1, None, None),
+    (None, None, "JAR:SUGAR-500G", 35.00, 0.5, "White Sugar Refill (500g)", 28.00, 35.00, 80.0, 15.0, "kg", 0, "#10b981", "Staples", 1, None, None),
+    (None, None, "JAR:OIL-250ML", 20.00, 0.25, "Cooking Oil (250ml Pouch)", 15.00, 20.00, 50.0, 10.0, "L", 0, "#eab308", "Cooking", 1, None, None),
+    (None, None, "JAR:CANDY-MAXX", 1.00, 1.0, "Maxx Menthol Candy (Jar)", 0.50, 1.00, 300.0, 50.0, "pc", 0, "#ec4899", "Snacks", 50, 22.00, 45.00),
+    ("4800016121005", "4800016121005-PACK", None, None, 1.0, "Lucky Me Pancit Canton Original", 9.00, 12.00, 120.0, 20.0, "pc", 0, "#10b981", "Noodles", 10, 85.00, 115.00),
+    ("4800361413022", "4800361413022-PACK", "JAR:KOPIKO-STICK", 7.00, 1.0, "Kopiko Brown Coffee 25g", 5.00, 7.00, 100.0, 15.0, "pc", 0, "#8b5cf6", "Beverages", 10, 48.00, 65.00),
 ]
 
 
 async def init_db():
     """
     Initialize the database: create tables, set WAL mode,
-    insert default settings and sample products on first run.
+    insert default settings, run schema migrations.
     """
-    # Ensure the data directory exists
     os.makedirs(DB_PATH.parent, exist_ok=True)
 
     async with aiosqlite.connect(str(DB_PATH)) as db:
-        # ── Enable WAL mode for better concurrent read performance ──
         await db.execute("PRAGMA journal_mode=WAL")
         await db.execute("PRAGMA foreign_keys=ON")
 
-        # ── Create all tables ──
+        # Create all tables
         await db.executescript(SCHEMA_SQL)
 
         # ── Column Migrations ──
+        migrations = [
+            "ALTER TABLE products ADD COLUMN pack_barcode TEXT",
+            "ALTER TABLE products ADD COLUMN jar_code TEXT",
+            "ALTER TABLE products ADD COLUMN refill_price REAL",
+            "ALTER TABLE products ADD COLUMN refill_qty REAL DEFAULT 1.0",
+            "ALTER TABLE products ADD COLUMN half_dozen_price REAL",
+            "ALTER TABLE products ADD COLUMN dozen_price REAL",
+            "ALTER TABLE products ADD COLUMN pcs_per_pack INTEGER DEFAULT 1",
+            "ALTER TABLE products ADD COLUMN bulk_cost_price REAL",
+            "ALTER TABLE products ADD COLUMN full_pack_price REAL",
+            "ALTER TABLE gcash_transactions ADD COLUMN reference_number TEXT",
+            "ALTER TABLE gcash_transactions ADD COLUMN mobile_number TEXT",
+            "ALTER TABLE gcash_transactions ADD COLUMN receipt_image TEXT",
+            "ALTER TABLE gcash_transactions ADD COLUMN gcash_timestamp TEXT",
+            "ALTER TABLE transactions ADD COLUMN receipt_number TEXT",
+            "ALTER TABLE transactions ADD COLUMN notes TEXT",
+            "ALTER TABLE transactions ADD COLUMN change_amount REAL DEFAULT 0",
+            "ALTER TABLE transactions ADD COLUMN customer_name TEXT",
+            "ALTER TABLE transaction_items ADD COLUMN pack_label TEXT",
+        ]
+
+        for stmt in migrations:
+            try:
+                await db.execute(stmt)
+            except Exception:
+                pass
+
+        # ── Create additional indexes ──
         try:
-            await db.execute("ALTER TABLE products ADD COLUMN half_dozen_price REAL")
-        except Exception:
-            pass
-        try:
-            await db.execute("ALTER TABLE products ADD COLUMN dozen_price REAL")
-        except Exception:
-            pass
-        try:
-            await db.execute("ALTER TABLE products ADD COLUMN pcs_per_pack INTEGER DEFAULT 1")
-        except Exception:
-            pass
-        try:
-            await db.execute("ALTER TABLE products ADD COLUMN bulk_cost_price REAL")
-        except Exception:
-            pass
-        try:
-            await db.execute("ALTER TABLE products ADD COLUMN full_pack_price REAL")
-        except Exception:
-            pass
-        try:
-            await db.execute("ALTER TABLE gcash_transactions ADD COLUMN reference_number TEXT")
-        except Exception:
-            pass
-        try:
-            await db.execute("ALTER TABLE gcash_transactions ADD COLUMN mobile_number TEXT")
-        except Exception:
-            pass
-        try:
-            await db.execute("ALTER TABLE gcash_transactions ADD COLUMN receipt_image TEXT")
-        except Exception:
-            pass
-        try:
-            await db.execute("ALTER TABLE gcash_transactions ADD COLUMN gcash_timestamp TEXT")
-        except Exception:
-            pass
-        try:
-            await db.execute("ALTER TABLE transactions ADD COLUMN receipt_number TEXT")
-        except Exception:
-            pass
-        try:
-            await db.execute("ALTER TABLE transactions ADD COLUMN notes TEXT")
-        except Exception:
-            pass
-        try:
-            await db.execute("ALTER TABLE transactions ADD COLUMN change_amount REAL DEFAULT 0")
-        except Exception:
-            pass
-        try:
-            await db.execute("ALTER TABLE transactions ADD COLUMN customer_name TEXT")
-        except Exception:
-            pass
-        try:
-            await db.execute("ALTER TABLE transaction_items ADD COLUMN pack_label TEXT")
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_products_pack_barcode ON products(pack_barcode)")
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_products_jar_code ON products(jar_code)")
         except Exception:
             pass
 
@@ -256,34 +284,39 @@ async def init_db():
                 (key, value)
             )
 
+        # ── Upgrade legacy plaintext password if present ──
+        cursor = await db.execute("SELECT value FROM admin_settings WHERE key = 'admin_password'")
+        pwd_row = await cursor.fetchone()
+        if pwd_row and pwd_row[0] and not pwd_row[0].startswith("pbkdf2_sha256$"):
+            hashed = hash_password(pwd_row[0])
+            await db.execute(
+                "UPDATE admin_settings SET value = ? WHERE key = 'admin_password'",
+                (hashed,)
+            )
+
         # ── Insert sample products if table is empty ──
         cursor = await db.execute("SELECT COUNT(*) FROM products")
         row = await cursor.fetchone()
         if row[0] == 0:
             await db.executemany(
                 """INSERT INTO products
-                   (barcode, name, cost_price, selling_price, stock_qty,
-                    low_stock_threshold, unit, is_quick_item, quick_button_color, category)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (barcode, pack_barcode, jar_code, refill_price, refill_qty, name, cost_price, selling_price, stock_qty,
+                    low_stock_threshold, unit, is_quick_item, quick_button_color, category, pcs_per_pack, bulk_cost_price, full_pack_price)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 SAMPLE_PRODUCTS
             )
 
         await db.commit()
-    print(f"[DB] Database initialized at: {DB_PATH}")
+    print(f"[DB] Database initialized and secured at: {DB_PATH}")
 
 
 async def get_db():
-    """
-    FastAPI dependency — yields an aiosqlite connection for each request.
-    Usage in routes:
-        @router.get("/api/items")
-        async def list_items(db = Depends(get_db)):
-            ...
-    """
+    """FastAPI dependency — yields an aiosqlite connection for each request."""
     db = await aiosqlite.connect(str(DB_PATH))
-    db.row_factory = aiosqlite.Row     # Access columns by name
+    db.row_factory = aiosqlite.Row
     await db.execute("PRAGMA foreign_keys=ON")
     try:
         yield db
     finally:
         await db.close()
+

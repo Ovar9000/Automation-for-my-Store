@@ -89,6 +89,13 @@ async def admin_gcash_page(request: Request):
     return templates.TemplateResponse(request=request, name="admin/gcash.html")
 
 
+@app.get("/admin/labels", response_class=HTMLResponse)
+async def admin_labels_page(request: Request):
+    """Jar QR & Mother-Pack Label Generator page."""
+    return templates.TemplateResponse(request=request, name="admin/labels.html")
+
+
+
 # ═══════════════════════════════════════════════════════════════
 # API ROUTERS (JSON endpoints)
 # ═══════════════════════════════════════════════════════════════

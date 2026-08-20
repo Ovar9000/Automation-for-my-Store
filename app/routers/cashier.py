@@ -19,54 +19,157 @@ router = APIRouter()
 
 
 # ═══════════════════════════════════════════════════════════════
-# PRODUCT LOOKUP ROUTES
+# SMART SCAN & PRODUCT LOOKUP ROUTES
 # ═══════════════════════════════════════════════════════════════
+
+@router.get("/products/smart-scan/{code}")
+async def smart_scan_lookup(code: str, db=Depends(get_db)):
+    """
+    Intelligent scanner endpoint:
+    Automatically identifies whether a scanned code is:
+      1. A Mother-Pack Barcode (auto-sets pack size & full-pack discount)
+      2. A Jar Refill QR Code (auto-sets preset refill price & volume)
+      3. A Standard Single-Piece Barcode (adds 1 unit)
+    """
+    clean_code = code.strip()
+
+    # 1. Check Mother-Pack Barcode first
+    cursor = await db.execute(
+        "SELECT * FROM products WHERE pack_barcode = ?",
+        (clean_code,)
+    )
+    row = await cursor.fetchone()
+    if row:
+        product = dict(row)
+        product["is_low_stock"] = product["stock_qty"] < product["low_stock_threshold"]
+        pcs = product.get("pcs_per_pack") or 10
+        pack_price = product.get("full_pack_price") if (product.get("full_pack_price") and product["full_pack_price"] > 0) else round(pcs * product["selling_price"], 2)
+        unit_price = round(pack_price / pcs, 2)
+
+        return {
+            "scan_type": "mother_pack",
+            "product": product,
+            "quantity_to_add": float(pcs),
+            "effective_unit_price": unit_price,
+            "effective_subtotal": pack_price,
+            "pack_label": f"Full-Pack ({pcs}pcs)",
+            "message": f"Mother-Pack Scanned: {product['name']} ({pcs}pcs Pack — ₱{pack_price:.2f})"
+        }
+
+    # 2. Check Jar Refill QR Code
+    cursor = await db.execute(
+        "SELECT * FROM products WHERE jar_code = ? OR jar_code = ?",
+        (clean_code, f"JAR:{clean_code}")
+    )
+    row = await cursor.fetchone()
+    if row:
+        product = dict(row)
+        product["is_low_stock"] = product["stock_qty"] < product["low_stock_threshold"]
+        refill_price = product.get("refill_price") if (product.get("refill_price") and product["refill_price"] > 0) else product["selling_price"]
+        refill_qty = product.get("refill_qty") or 1.0
+
+        return {
+            "scan_type": "jar_refill",
+            "product": product,
+            "quantity_to_add": float(refill_qty),
+            "effective_unit_price": float(refill_price),
+            "effective_subtotal": round(refill_qty * refill_price, 2),
+            "pack_label": f"Jar Refill ({refill_qty}{product['unit']})",
+            "message": f"Jar QR Scanned: {product['name']} (Refill ₱{refill_price:.2f})"
+        }
+
+    # 3. Check Standard Single-Unit Barcode
+    cursor = await db.execute(
+        "SELECT * FROM products WHERE barcode = ?",
+        (clean_code,)
+    )
+    row = await cursor.fetchone()
+    if row:
+        product = dict(row)
+        product["is_low_stock"] = product["stock_qty"] < product["low_stock_threshold"]
+
+        return {
+            "scan_type": "unit",
+            "product": product,
+            "quantity_to_add": 1.0,
+            "effective_unit_price": float(product["selling_price"]),
+            "effective_subtotal": float(product["selling_price"]),
+            "pack_label": None,
+            "message": f"Scanned: {product['name']} (₱{product['selling_price']:.2f})"
+        }
+
+    raise HTTPException(
+        status_code=404,
+        detail=f"No product matches scanned code: {clean_code}"
+    )
+
 
 @router.get("/products/barcode/{barcode}")
 async def get_product_by_barcode(barcode: str, db=Depends(get_db)):
     """
-    Look up a single product by its barcode.
-
-    Business logic:
-    - Used when the cashier scans a barcode with a USB scanner.
-    - Returns the full product dict so the frontend can add it to the cart.
-    - Returns 404 if the barcode doesn't match any product (could be misprinted).
+    Look up a single product by barcode, pack barcode, or jar code.
+    Maintains full backward compatibility while supporting packs & jar QRs.
     """
+    clean_code = barcode.strip()
+
+    # Search in order: pack_barcode -> jar_code -> barcode
     cursor = await db.execute(
-        "SELECT * FROM products WHERE barcode = ?",
-        (barcode,)
+        """SELECT * FROM products 
+           WHERE barcode = ? OR pack_barcode = ? OR jar_code = ? OR jar_code = ?""",
+        (clean_code, clean_code, clean_code, f"JAR:{clean_code}")
     )
     row = await cursor.fetchone()
 
     if not row:
         raise HTTPException(
             status_code=404,
-            detail=f"No product found with barcode: {barcode}"
+            detail=f"No product found with barcode or QR code: {clean_code}"
         )
 
     product = dict(row)
-    # Add computed low-stock flag for frontend warning indicators
     product["is_low_stock"] = product["stock_qty"] < product["low_stock_threshold"]
+
+    # Annotate scan metadata
+    if product.get("pack_barcode") == clean_code:
+        pcs = product.get("pcs_per_pack") or 10
+        pack_price = product.get("full_pack_price") if (product.get("full_pack_price") and product["full_pack_price"] > 0) else round(pcs * product["selling_price"], 2)
+        product["scan_type"] = "mother_pack"
+        product["default_qty"] = float(pcs)
+        product["default_price"] = round(pack_price / pcs, 2)
+        product["default_subtotal"] = pack_price
+        product["pack_label"] = f"Full-Pack ({pcs}pcs)"
+    elif product.get("jar_code") in (clean_code, f"JAR:{clean_code}"):
+        refill_price = product.get("refill_price") if (product.get("refill_price") and product["refill_price"] > 0) else product["selling_price"]
+        refill_qty = product.get("refill_qty") or 1.0
+        product["scan_type"] = "jar_refill"
+        product["default_qty"] = float(refill_qty)
+        product["default_price"] = float(refill_price)
+        product["default_subtotal"] = round(refill_qty * refill_price, 2)
+        product["pack_label"] = f"Jar Refill ({refill_qty}{product['unit']})"
+    else:
+        product["scan_type"] = "unit"
+        product["default_qty"] = 1.0
+        product["default_price"] = float(product["selling_price"])
+        product["default_subtotal"] = float(product["selling_price"])
+        product["pack_label"] = None
+
     return product
 
 
 @router.get("/products/search")
-async def search_products(q: str = Query(..., min_length=1, description="Search query for product name"), db=Depends(get_db)):
+async def search_products(q: str = Query(..., min_length=1, description="Search query for product name, barcode, or jar code"), db=Depends(get_db)):
     """
-    Search products by name using SQL LIKE (case-insensitive).
-
-    Business logic:
-    - Used when the cashier types a product name in the search bar.
-    - Returns partial matches so the cashier can quickly find items.
-    - LIKE '%query%' matches anywhere in the name.
+    Search products by name, barcode, pack_barcode, or jar_code using SQL LIKE.
     """
+    term = f"%{q.strip()}%"
     cursor = await db.execute(
-        "SELECT * FROM products WHERE name LIKE ? ORDER BY name",
-        (f"%{q}%",)
+        """SELECT * FROM products 
+           WHERE name LIKE ? OR barcode LIKE ? OR pack_barcode LIKE ? OR jar_code LIKE ?
+           ORDER BY name""",
+        (term, term, term, term)
     )
     rows = await cursor.fetchall()
 
-    # Convert each Row to a dict and add computed is_low_stock field
     products = []
     for row in rows:
         product = dict(row)
@@ -78,17 +181,9 @@ async def search_products(q: str = Query(..., min_length=1, description="Search 
 
 @router.get("/products/quick")
 async def get_quick_items(db=Depends(get_db)):
-    """
-    Get all products marked as quick-button items.
-
-    Business logic:
-    - Quick items appear as large colored buttons on the cashier screen.
-    - These are high-frequency items like Rice, Candy, Gasoline, etc.
-    - The cashier can tap them instead of scanning/searching.
-    - Sorted by name for consistent button layout.
-    """
+    """Get products marked for fast-access."""
     cursor = await db.execute(
-        "SELECT * FROM products WHERE is_quick_item = 1 ORDER BY name"
+        "SELECT * FROM products WHERE is_quick_item = 1 OR jar_code IS NOT NULL ORDER BY name"
     )
     rows = await cursor.fetchall()
 

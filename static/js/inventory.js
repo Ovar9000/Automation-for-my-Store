@@ -38,6 +38,10 @@ function inventoryApp() {
     // Form fields mapped directly to the schema
     form: {
       barcode: '',
+      pack_barcode: '',
+      jar_code: '',
+      refill_price: '',
+      refill_qty: 1.0,
       name: '',
       cost_price: 0,
       selling_price: 0,
@@ -399,6 +403,10 @@ function inventoryApp() {
           stock_qty: parseFloat(this.form.stock_qty) || 0,
           low_stock_threshold: parseFloat(this.form.low_stock_threshold) || 0,
           barcode: this.form.barcode && this.form.barcode.trim() ? this.form.barcode.trim() : null,
+          pack_barcode: this.form.pack_barcode && this.form.pack_barcode.trim() ? this.form.pack_barcode.trim() : null,
+          jar_code: this.form.jar_code && this.form.jar_code.trim() ? this.form.jar_code.trim() : null,
+          refill_price: this.form.refill_price !== '' && this.form.refill_price !== null ? parseFloat(this.form.refill_price) : null,
+          refill_qty: this.form.refill_qty !== '' && this.form.refill_qty !== null ? parseFloat(this.form.refill_qty) : 1.0,
           pcs_per_pack: parseInt(this.form.pcs_per_pack) || 1,
           bulk_cost_price: this.form.bulk_cost_price !== '' && this.form.bulk_cost_price !== null ? parseFloat(this.form.bulk_cost_price) : null,
           full_pack_price: this.form.full_pack_price !== '' && this.form.full_pack_price !== null ? parseFloat(this.form.full_pack_price) : null
@@ -452,6 +460,10 @@ function inventoryApp() {
     resetForm() {
       this.form = {
         barcode: '',
+        pack_barcode: '',
+        jar_code: '',
+        refill_price: '',
+        refill_qty: 1.0,
         name: '',
         cost_price: 0,
         selling_price: 0,
@@ -477,3 +489,4 @@ function inventoryApp() {
     }
   };
 }
+

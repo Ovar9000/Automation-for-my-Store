@@ -18,7 +18,8 @@ function cashierApp() {
     searchResults: [],
     selectedSearchIndex: -1,
     selectedCartIndex: -1,
-    quickItems: [],
+    jarItems: [],
+    lastScanEvent: null,
     amountTendered: '',
     printReceipt: false,
     showGcashModal: false,
@@ -26,8 +27,6 @@ function cashierApp() {
     paymentTab: 'cash',            // 'cash' | 'gcash' | 'utang'
     showSuccessModal: false,
     lastSaleDetails: { total: 0, tendered: 0, change: 0, itemsCount: 0, method: 'CASH', receiptNo: '' },
-    lastScannedProduct: null,
-    showBundleBanner: false,
     showWeightModal: false,
     weightInput: '',
     selectedWeightItem: null,
@@ -67,7 +66,8 @@ function cashierApp() {
     },
 
     get inputLooksLikeBarcode() {
-      return /^[\d\-]+$/.test(this.smartInput.trim());
+      const val = this.smartInput.trim();
+      return /^[\d\-]+$/.test(val) || val.startsWith('JAR:') || val.startsWith('PACK:');
     },
 
     // ── Lifecycle ─────────────────────────────────────────────
@@ -82,7 +82,7 @@ function cashierApp() {
         this.cart = [];
       }
 
-      this.loadQuickItems();
+      this.loadJarAndPackItems();
       this.loadDebtList();
 
       this.$nextTick(() => this.focusSmartInput());
@@ -90,7 +90,7 @@ function cashierApp() {
     },
 
     // ═══════════════════════════════════════════════════════════
-    // SMART INPUT & BARCODE SCANNING
+    // SMART INPUT & BARCODE / JAR QR SCANNING
     // ═══════════════════════════════════════════════════════════
 
     onSmartInput() {
@@ -175,26 +175,50 @@ function cashierApp() {
       this.contextMode = 'scan';
     },
 
+    triggerSmartScan(code) {
+      if (!code) return;
+      this.smartInput = code;
+      this.scanBarcode(code);
+    },
+
     async scanBarcode(code) {
       if (!code) code = this.smartInput.trim();
       if (!code) return;
 
       try {
-        const res = await fetch(`/api/products/barcode/${encodeURIComponent(code)}`);
+        const res = await fetch(`/api/products/smart-scan/${encodeURIComponent(code)}`);
         if (!res.ok) {
-          this.showNotification(`No product with barcode "${code}"`, 'error');
+          // Fallback check
+          const fallbackRes = await fetch(`/api/products/barcode/${encodeURIComponent(code)}`);
+          if (!fallbackRes.ok) {
+            this.showNotification(`No product matching "${code}"`, 'error');
+            this.smartInput = '';
+            this.focusSmartInput();
+            return;
+          }
+          const product = await fallbackRes.json();
+          this.addToCart(product, product.default_qty || 1, product.default_price, product.pack_label);
           this.smartInput = '';
           this.focusSmartInput();
           return;
         }
-        const product = await res.json();
-        if (product.unit === 'kg' || product.unit === 'L') {
-          this.selectedWeightItem = product;
-          this.weightInput = '';
-          this.showWeightModal = true;
-        } else {
-          this.addToCart(product);
-        }
+
+        const scanData = await res.json();
+        const p = scanData.product;
+
+        this.addToCart(p, scanData.quantity_to_add, scanData.effective_unit_price, scanData.pack_label);
+
+        this.lastScanEvent = {
+          type: scanData.scan_type,
+          message: scanData.message,
+          details: scanData.pack_label || (scanData.quantity_to_add + 'x ' + p.unit),
+          price: scanData.effective_subtotal
+        };
+
+        setTimeout(() => {
+          this.lastScanEvent = null;
+        }, 4000);
+
       } catch (err) {
         this.showNotification('Scan error: ' + err.message, 'error');
       }
@@ -213,9 +237,10 @@ function cashierApp() {
     // CART OPERATIONS
     // ═══════════════════════════════════════════════════════════
 
-    _bundleBannerTimeout: null,
-    addToCart(product, quantity = 1) {
-      const existing = this.cart.find(item => item.product_id === product.id && !item.pack_label);
+    addToCart(product, quantity = 1, customUnitPrice = null, packLabel = null) {
+      const unitPrice = customUnitPrice !== null ? customUnitPrice : product.selling_price;
+      const existing = this.cart.find(item => item.product_id === product.id && item.pack_label === packLabel);
+
       if (existing) {
         existing.quantity += quantity;
         existing.subtotal = Math.round(existing.quantity * existing.unit_price * 100) / 100;
@@ -225,30 +250,20 @@ function cashierApp() {
           product_name: product.name,
           quantity: quantity,
           unit: product.unit || 'pc',
-          unit_price: product.selling_price,
+          unit_price: unitPrice,
           cost_price: product.cost_price,
-          subtotal: Math.round(quantity * product.selling_price * 100) / 100,
+          subtotal: Math.round(quantity * unitPrice * 100) / 100,
           pcs_per_pack: product.pcs_per_pack || 10,
           full_pack_price: product.full_pack_price || null,
-          half_dozen_price: product.half_dozen_price || null,
-          dozen_price: product.dozen_price || null,
           stock_qty: product.stock_qty,
           low_stock_threshold: product.low_stock_threshold,
-          pack_label: null
+          pack_label: packLabel
         });
       }
 
-      this.lastScannedProduct = product;
-      if (product.pcs_per_pack && product.pcs_per_pack > 1) {
-        this.showBundleBanner = true;
-        clearTimeout(this._bundleBannerTimeout);
-        this._bundleBannerTimeout = setTimeout(() => {
-          this.showBundleBanner = false;
-        }, 5000);
-      }
-
       this.saveCart();
-      this.showNotification(`Added ${product.name}`);
+      const labelDesc = packLabel ? ` [${packLabel}]` : '';
+      this.showNotification(`Added ${product.name}${labelDesc}`);
       this.focusSmartInput();
 
       this.$nextTick(() => {
@@ -259,44 +274,6 @@ function cashierApp() {
           el.classList.add('total-pulse');
         }
       });
-    },
-
-    convertLastItemToPack(packType) {
-      if (!this.lastScannedProduct || this.cart.length === 0) return;
-      const item = this.cart.find(i => i.product_id === this.lastScannedProduct.id);
-      if (!item) return;
-
-      const packSize = this.lastScannedProduct.pcs_per_pack || 10;
-      const halfQty = Math.max(1, Math.round(packSize / 2));
-      const fullQty = packSize;
-
-      if (packType === 'half') {
-        item.quantity = halfQty;
-        if (item.full_pack_price) {
-          item.subtotal = Math.round((item.full_pack_price / 2) * 100) / 100;
-        } else if (item.half_dozen_price) {
-          item.subtotal = Math.round(item.half_dozen_price * 100) / 100;
-        } else {
-          item.subtotal = Math.round(halfQty * item.unit_price * 100) / 100;
-        }
-        item.pack_label = `Half-Pack (${halfQty}pcs)`;
-        this.showNotification(`Set to Half-Pack (${halfQty}pcs) — ₱${item.subtotal.toFixed(2)}`, 'success');
-      } else if (packType === 'full' || packType === 'dozen') {
-        item.quantity = fullQty;
-        if (item.full_pack_price) {
-          item.subtotal = Math.round(item.full_pack_price * 100) / 100;
-        } else if (item.dozen_price) {
-          item.subtotal = Math.round(item.dozen_price * 100) / 100;
-        } else {
-          item.subtotal = Math.round(fullQty * item.unit_price * 100) / 100;
-        }
-        item.pack_label = `Full-Pack (${fullQty}pcs)`;
-        this.showNotification(`Set to Full-Pack (${fullQty}pcs) — ₱${item.subtotal.toFixed(2)}`, 'success');
-      }
-
-      this.showBundleBanner = false;
-      this.saveCart();
-      this.focusSmartInput();
     },
 
     removeFromCart(index) {
@@ -351,15 +328,17 @@ function cashierApp() {
       }
     },
 
-    // ── Quick Items ──────────────────────────────────────────
-    async loadQuickItems() {
+    // ── Jar Refills & Mother-Packs ───────────────────────────
+    async loadJarAndPackItems() {
       try {
-        const res = await fetch('/api/products/quick');
+        const res = await fetch('/api/products');
         if (res.ok) {
-          this.quickItems = await res.json();
+          const all = await res.json();
+          // Filter to items that have jar_code, pack_barcode, or are refill items
+          this.jarItems = all.filter(p => p.jar_code || p.pack_barcode || p.is_quick_item);
         }
       } catch (err) {
-        console.error('Failed to load quick items:', err);
+        console.error('Failed to load jar items:', err);
       }
     },
 

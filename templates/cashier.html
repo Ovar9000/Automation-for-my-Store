@@ -114,30 +114,26 @@
         </div>
       </div>
 
-      <!-- ── MULTI-PACK CONVERSION BANNER ── -->
-      <div x-show="showBundleBanner && lastScannedProduct"
+      <!-- ── LIVE SMART SCAN FEED & SCANNER BANNER ── -->
+      <div x-show="lastScanEvent"
            x-transition:enter="transition ease-out duration-150"
            x-transition:enter-start="opacity-0 -translate-y-1"
            x-transition:enter-end="opacity-100 translate-y-0"
-           x-transition:leave="transition ease-in duration-100"
-           x-transition:leave-start="opacity-100"
-           x-transition:leave-end="opacity-0"
-           class="bg-indigo-50/80 border border-indigo-200/80 rounded-xl p-2.5 flex items-center justify-between shadow-2xs"
-           style="display: none;">
-        <div class="flex items-center gap-2">
-          <span class="text-indigo-600 font-bold text-sm">⚡ Multi-Pack Option:</span>
-          <span class="text-xs font-semibold text-slate-700" x-text="lastScannedProduct?.name"></span>
+           class="rounded-xl p-3 flex items-center justify-between shadow-2xs border"
+           :class="{
+             'bg-indigo-50/90 border-indigo-200 text-indigo-900': lastScanEvent?.type === 'mother_pack',
+             'bg-emerald-50/90 border-emerald-200 text-emerald-900': lastScanEvent?.type === 'jar_refill',
+             'bg-slate-100/90 border-slate-200 text-slate-900': lastScanEvent?.type === 'unit'
+           }">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span class="text-lg" x-text="lastScanEvent?.type === 'mother_pack' ? '📦' : lastScanEvent?.type === 'jar_refill' ? '🫙' : '⚡'"></span>
+          <div class="min-w-0">
+            <p class="text-xs font-bold truncate" x-text="lastScanEvent?.message"></p>
+            <p class="text-[10px] opacity-75 font-mono" x-text="lastScanEvent?.details"></p>
+          </div>
         </div>
-        <div class="flex items-center gap-2">
-          <button @click="convertLastItemToPack('half')"
-                  class="px-2.5 py-1 bg-white hover:bg-indigo-100/60 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs">
-            Half-Pack (<span x-text="Math.max(1, Math.round((lastScannedProduct?.pcs_per_pack || 10)/2)) + 'pcs'"></span>)
-          </button>
-          <button @click="convertLastItemToPack('full')"
-                  class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs">
-            Full-Pack (<span x-text="(lastScannedProduct?.pcs_per_pack || 10) + 'pcs'"></span>)
-          </button>
-        </div>
+        <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-lg bg-white/80 border border-current shadow-2xs whitespace-nowrap"
+              x-text="formatPrice(lastScanEvent?.price)"></span>
       </div>
 
       <!-- ── SEARCH RESULTS DROPDOWN (Keyboard Navigable) ── -->
@@ -162,7 +158,7 @@
               <div class="min-w-0">
                 <p class="text-sm font-semibold text-slate-800 truncate" x-text="product.name"></p>
                 <div class="flex items-center gap-2 text-[11px] text-slate-400 font-mono mt-0.5">
-                  <span x-text="product.barcode || 'No barcode'"></span>
+                  <span x-text="product.pack_barcode ? 'Tie/Pack: ' + product.pack_barcode : product.jar_code ? 'QR: ' + product.jar_code : product.barcode || 'No barcode'"></span>
                   <span>•</span>
                   <span :class="product.stock_qty > product.low_stock_threshold ? 'text-slate-500' : 'text-amber-600 font-bold'"
                         x-text="`${product.stock_qty} ${product.unit} left`"></span>
@@ -177,27 +173,36 @@
         </template>
       </div>
 
-      <!-- ── QUICK ITEMS GRID (When not searching) ── -->
+      <!-- ── SMART DISPENSER & JAR REFILL CATALOG (Zero Menial Scanning) ── -->
       <div x-show="searchResults.length === 0" class="flex-1 flex flex-col min-h-0 bg-white border border-slate-200/80 rounded-xl p-3 shadow-xs">
         <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 flex-shrink-0">
-          <span class="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-            <span>⚡ Fast Touch Items</span>
-            <span class="kbd-clean text-[10px]">F3</span>
-          </span>
-          <span class="text-xs text-slate-400" x-text="quickItems.length + ' items'"></span>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🫙 Jar Refills & Hanging Pack Ties</span>
+            </span>
+            <span class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-100">Smart QR Scan Enabled</span>
+          </div>
+          <span class="text-xs text-slate-400 font-mono" x-text="jarItems.length + ' registered refills'"></span>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 overflow-y-auto cart-scroll flex-1 pr-1 content-start auto-rows-max">
-          <template x-for="item in quickItems" :key="item.id">
-            <button @click="addToCart(item)"
-                    class="group relative flex flex-col justify-between p-3 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/30 active:scale-98 transition-all cursor-pointer text-left shadow-2xs min-h-[76px]">
+        <!-- Jar QR & Pack Catalog Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 overflow-y-auto cart-scroll flex-1 pr-1 content-start auto-rows-max">
+          <template x-for="item in jarItems" :key="item.id">
+            <button @click="triggerSmartScan(item.jar_code || item.pack_barcode || item.barcode)"
+                    class="group relative flex flex-col justify-between p-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:border-indigo-400 hover:bg-indigo-50/40 active:scale-98 transition-all cursor-pointer text-left shadow-2xs min-h-[82px]">
               <div class="flex items-start justify-between gap-1 w-full">
-                <p class="text-xs font-bold text-slate-800 group-hover:text-indigo-600 transition-colors line-clamp-2 leading-tight" x-text="item.name"></p>
-                <div class="w-2 h-2 rounded-full flex-shrink-0 mt-0.5" :style="`background-color: ${item.quick_button_color || '#3b82f6'};`"></div>
+                <div class="min-w-0">
+                  <p class="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-2 leading-tight" x-text="item.name"></p>
+                  <span class="inline-block font-mono text-[9px] font-bold text-slate-500 bg-white px-1.5 py-0.2 rounded border border-slate-200 mt-1"
+                        x-text="item.jar_code ? 'QR: ' + item.jar_code : item.pack_barcode ? 'PACK: ' + item.pcs_per_pack + 'pcs' : 'BARCODE'"></span>
+                </div>
+                <span class="text-base flex-shrink-0" x-text="item.jar_code ? '🫙' : '📦'"></span>
               </div>
-              <div class="flex items-baseline justify-between w-full mt-2">
-                <span class="text-sm font-bold text-emerald-700 font-mono tracking-tight" x-text="formatPrice(item.selling_price)"></span>
-                <span class="text-[10px] text-slate-400 uppercase font-medium" x-text="'/' + item.unit"></span>
+              <div class="flex items-baseline justify-between w-full mt-2 pt-1 border-t border-slate-200/60">
+                <span class="text-sm font-extrabold text-emerald-700 font-mono tracking-tight"
+                      x-text="formatPrice(item.refill_price || (item.full_pack_price && item.pack_barcode ? item.full_pack_price : item.selling_price))"></span>
+                <span class="text-[10px] text-slate-500 font-medium"
+                      x-text="item.jar_code ? `${item.refill_qty || 1}${item.unit} refill` : item.pack_barcode ? `${item.pcs_per_pack}pcs pack` : '/' + item.unit"></span>
               </div>
             </button>
           </template>
@@ -230,7 +235,7 @@
       <!-- ── SHORTCUT HINTS FOOTER ── -->
       <div class="flex items-center gap-3 text-[11px] text-slate-400 flex-shrink-0 flex-wrap px-1">
         <span><span class="kbd-clean">Enter</span> Checkout</span>
-        <span><span class="kbd-clean">F1</span> Focus</span>
+        <span><span class="kbd-clean">F1</span> Scanner</span>
         <span><span class="kbd-clean">F4</span> Utang</span>
         <span><span class="kbd-clean">F5</span> Pay</span>
         <span><span class="kbd-clean">Tab</span> Cart</span>
