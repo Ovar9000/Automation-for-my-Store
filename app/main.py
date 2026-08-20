@@ -8,6 +8,7 @@ Run with: python run.py  (or: uvicorn app.main:app --reload)
 """
 
 from contextlib import asynccontextmanager
+import sys
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -15,13 +16,18 @@ from fastapi.responses import HTMLResponse
 from pathlib import Path
 
 from app.database import init_db
-from app.routers import cashier, gcash, inventory, reports, printer, debt
+from app.routers import cashier, gcash, inventory, reports, printer, debt, sync
 
 
-# ─── Paths ───────────────────────────────────────────────────────────
-BASE_DIR = Path(__file__).resolve().parent.parent
-TEMPLATES_DIR = BASE_DIR / "templates"
-STATIC_DIR = BASE_DIR / "static"
+# ─── Resource Paths (Supports PyInstaller frozen .exe & python source) 
+if getattr(sys, "frozen", False):
+    # PyInstaller temporary extraction folder
+    RESOURCE_DIR = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+else:
+    RESOURCE_DIR = Path(__file__).resolve().parent.parent
+
+TEMPLATES_DIR = RESOURCE_DIR / "templates"
+STATIC_DIR = RESOURCE_DIR / "static"
 
 
 # ─── Lifespan: runs on startup and shutdown ──────────────────────────
@@ -95,6 +101,11 @@ async def admin_labels_page(request: Request):
     return templates.TemplateResponse(request=request, name="admin/labels.html")
 
 
+@app.get("/admin/sync", response_class=HTMLResponse)
+async def admin_sync_page(request: Request):
+    """Cloud Sync & Database Backup Management page."""
+    return templates.TemplateResponse(request=request, name="admin/sync.html")
+
 
 # ═══════════════════════════════════════════════════════════════
 # API ROUTERS (JSON endpoints)
@@ -106,3 +117,5 @@ app.include_router(inventory.router, prefix="/api", tags=["Inventory"])
 app.include_router(reports.router, prefix="/api", tags=["Reports"])
 app.include_router(printer.router, prefix="/api", tags=["Printer"])
 app.include_router(debt.router, prefix="/api/debts", tags=["Debts"])
+app.include_router(sync.router)
+

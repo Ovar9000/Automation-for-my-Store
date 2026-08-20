@@ -1,8 +1,9 @@
 """
-Sari-Sari Store POS — Windows Desktop Application Wrapper
-=========================================================
-Runs FastAPI/Uvicorn in the background and opens a clean desktop
-POS kiosk window via WebView2 (or default browser).
+Sari-Sari Store POS — Standalone Windows Desktop App
+=====================================================
+Boots the local FastAPI server in the background and opens a native
+borderless kiosk window using Microsoft Edge WebView2 (pywebview)
+or optimized browser app mode.
 
 Usage:
     python desktop_app.py
@@ -13,85 +14,108 @@ import os
 import time
 import socket
 import threading
-import webbrowser
+import urllib.request
+import multiprocessing
 from pathlib import Path
 
-# Add project root to sys.path
-PROJECT_ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(PROJECT_ROOT))
+# Fix sys.stdout/sys.stderr for Windows windowed mode
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w")
+
+# Resolve project base directory
+if getattr(sys, "frozen", False):
+    BASE_DIR = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    sys.path.insert(0, str(BASE_DIR))
+    sys.path.insert(0, str(Path(sys.executable).parent))
+else:
+    BASE_DIR = Path(__file__).resolve().parent
+    sys.path.insert(0, str(BASE_DIR))
 
 PORT = 8000
 HOST = "127.0.0.1"
+URL = f"http://{HOST}:{PORT}"
 
 
-def is_port_in_use(port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex((HOST, port)) == 0
+def wait_for_server(timeout=15.0):
+    """Wait until the FastAPI server responds with HTTP 200."""
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            req = urllib.request.Request(URL, headers={"User-Agent": "POS-Launcher"})
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                if resp.status == 200:
+                    return True
+        except Exception:
+            pass
+        time.sleep(0.15)
+    return False
 
 
-def start_server():
-    """Start Uvicorn server in background thread."""
+def start_uvicorn():
+    """Start uvicorn in a dedicated worker thread with asyncio event loop."""
+    import asyncio
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
     import uvicorn
     from app.main import app
-    uvicorn.run(app, host=HOST, port=PORT, log_level="warning")
+
+    config = uvicorn.Config(
+        app=app,
+        host=HOST,
+        port=PORT,
+        log_level="critical",
+        access_log=False,
+        loop="asyncio",
+        workers=1
+    )
+    server = uvicorn.Server(config)
+    server.run()
 
 
 def main():
-    print("==================================================")
-    print("  Sari-Sari Store POS — Desktop Terminal Launcher")
-    print("==================================================")
+    multiprocessing.freeze_support()
 
-    if not is_port_in_use(PORT):
-        print(f"[*] Starting local POS server on http://{HOST}:{PORT}...")
-        server_thread = threading.Thread(target=start_server, daemon=True)
-        server_thread.start()
+    # 1. Start server in background thread if not already running
+    server_thread = threading.Thread(target=start_uvicorn, daemon=True)
+    server_thread.start()
 
-        # Wait for server to become healthy
-        for _ in range(50):
-            if is_port_in_use(PORT):
-                break
-            time.sleep(0.1)
+    # 2. Wait for HTTP 200 before launching UI
+    server_ready = wait_for_server(timeout=10.0)
 
-    url = f"http://{HOST}:{PORT}"
-    print(f"[+] POS Terminal active at: {url}")
-
-    # Try launching with pywebview if installed, otherwise open in browser app mode
+    # 3. Launch native desktop window (WebView2)
     try:
         import webview
-        print("[*] Launching native Windows POS Kiosk window (WebView2)...")
-        webview.create_window(
+        window = webview.create_window(
             title="Sari-Sari Store POS Terminal",
-            url=url,
+            url=URL,
             width=1280,
-            height=800,
+            height=820,
             min_size=(1024, 700),
             confirm_close=True,
             easy_drag=False
         )
-        webview.start()
-    except ImportError:
-        print("[*] pywebview not installed. Opening in optimized browser kiosk mode...")
-        # Open in Chrome/Edge app window mode if possible
+        webview.start(private_mode=False)
+    except Exception as e:
+        # Fallback: launch Edge or Chrome in standalone kiosk app mode
+        import webbrowser
         edge_path = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
         chrome_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-        
-        opened = False
+
         if os.path.exists(edge_path):
-            os.system(f'start "" "{edge_path}" --app={url} --start-maximized')
-            opened = True
+            os.system(f'start "" "{edge_path}" --app={URL} --start-maximized')
         elif os.path.exists(chrome_path):
-            os.system(f'start "" "{chrome_path}" --app={url} --start-maximized')
-            opened = True
+            os.system(f'start "" "{chrome_path}" --app={URL} --start-maximized')
+        else:
+            webbrowser.open(URL)
 
-        if not opened:
-            webbrowser.open(url)
-
-        print("[+] POS is running in your browser. Press Ctrl+C in this terminal to exit.")
+        # Keep process alive while fallback browser window is active
         try:
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            print("\n[!] Shutting down POS server.")
             sys.exit(0)
 
 

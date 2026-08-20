@@ -1,6 +1,7 @@
 # Ignore SQLite database
 data/store.db
-
+dist/
+build/
 # Python bytecode/caches
 __pycache__/
 *.py[cod]

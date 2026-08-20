@@ -13,12 +13,20 @@ import aiosqlite
 import hashlib
 import os
 import secrets
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# ─── Database file path ──────────────────────────────────────────────
-BASE_DIR = Path(__file__).resolve().parent.parent
+# ─── Database file path (Supports frozen .exe and regular python) ────
+if getattr(sys, "frozen", False):
+    # Running as compiled .exe: store DB next to the executable
+    BASE_DIR = Path(sys.executable).parent
+else:
+    # Running from source code
+    BASE_DIR = Path(__file__).resolve().parent.parent
+
 DB_PATH = BASE_DIR / "data" / "store.db"
+
 
 
 # ─── Cryptographic Password Utilities ────────────────────────────────

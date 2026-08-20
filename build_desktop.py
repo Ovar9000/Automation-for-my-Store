@@ -1,14 +1,15 @@
 """
-Sari-Sari Store POS — Windows .EXE Build Script
-==============================================
-Builds a standalone executable using PyInstaller.
+Sari-Sari Store POS — Windows .EXE Builder
+==========================================
+Bundles the POS app into a single standalone folder / executable with PyInstaller.
 
 Usage:
     python build_desktop.py
 """
 
-import subprocess
+import os
 import sys
+import subprocess
 import shutil
 from pathlib import Path
 
@@ -19,14 +20,16 @@ def build():
     print("  Building Standalone Sari-Sari Store POS .EXE   ")
     print("==================================================")
 
-    # Check if pyinstaller is installed
-    try:
-        import PyInstaller
-    except ImportError:
-        print("[!] PyInstaller is not installed. Installing via pip...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller", "pywebview"])
+    # Clean old build artifacts
+    for folder in ["build", "dist"]:
+        p = PROJECT_ROOT / folder
+        if p.exists():
+            try:
+                shutil.rmtree(p)
+            except Exception as e:
+                print(f"[!] Warning cleaning {folder}: {e}")
 
-    # Define build command
+    # Build command
     cmd = [
         sys.executable,
         "-m",
@@ -41,9 +44,11 @@ def build():
         "--hidden-import=uvicorn.logging",
         "--hidden-import=uvicorn.loops",
         "--hidden-import=uvicorn.loops.auto",
+        "--hidden-import=uvicorn.loops.asyncio",
         "--hidden-import=uvicorn.protocols",
         "--hidden-import=uvicorn.protocols.http",
         "--hidden-import=uvicorn.protocols.http.auto",
+        "--hidden-import=uvicorn.protocols.http.h11_impl",
         "--hidden-import=uvicorn.protocols.websockets",
         "--hidden-import=uvicorn.protocols.websockets.auto",
         "--hidden-import=uvicorn.lifespan",
@@ -51,15 +56,20 @@ def build():
         "--hidden-import=aiosqlite",
         "--hidden-import=jinja2",
         "--hidden-import=pydantic",
+        "--hidden-import=webview",
+        "--hidden-import=clr",
+        "--hidden-import=httpx",
+        "--collect-all=webview",
         str(PROJECT_ROOT / "desktop_app.py")
     ]
 
-    print(f"[*] Running command: {' '.join(cmd)}")
+    print(f"[*] Running PyInstaller...")
     subprocess.check_call(cmd, cwd=str(PROJECT_ROOT))
 
     print("\n==================================================")
     print("  BUILD SUCCESSFUL!")
-    print(f"  Executable output: dist/SariSariPOS/SariSariPOS.exe")
+    print(f"  Output folder: {PROJECT_ROOT / 'dist' / 'SariSariPOS'}")
+    print(f"  Executable:    {PROJECT_ROOT / 'dist' / 'SariSariPOS' / 'SariSariPOS.exe'}")
     print("==================================================")
 
 if __name__ == "__main__":
