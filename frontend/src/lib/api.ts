@@ -58,9 +58,64 @@ export async function submitCheckout(payload: {
   return res.json()
 }
 
-export async function fetchDebtCustomers(): Promise<CustomerDebt[]> {
-  const res = await fetch(`${BASE_URL}/api/debts/customers`)
+export async function fetchDebtCustomers(search?: string): Promise<CustomerDebt[]> {
+  const url = search && search.trim()
+    ? `${BASE_URL}/api/debts?search=${encodeURIComponent(search.trim())}`
+    : `${BASE_URL}/api/debts`
+  const res = await fetch(url)
   if (!res.ok) return []
+  return res.json()
+}
+
+export async function payDebt(debtId: number, paymentAmount: number, notes?: string): Promise<{
+  message: string
+  customer: CustomerDebt
+  payment_amount: number
+}> {
+  const res = await fetch(`${BASE_URL}/api/debts/${debtId}/pay`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ payment_amount: paymentAmount, notes })
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.detail || 'Failed to process debt repayment')
+  }
+  return res.json()
+}
+
+export async function fetchDebtHistory(debtId: number): Promise<{
+  customer: CustomerDebt
+  history: import('../types').DebtTransaction[]
+}> {
+  const res = await fetch(`${BASE_URL}/api/debts/${debtId}/history`)
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.detail || 'Failed to fetch customer debt history')
+  }
+  return res.json()
+}
+
+export async function registerDebtCustomer(payload: {
+  customer_name: string
+  amount_charged?: number
+  phone_number?: string
+  notes?: string
+}): Promise<CustomerDebt> {
+  const res = await fetch(`${BASE_URL}/api/debts/charge`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      customer_name: payload.customer_name,
+      amount_charged: payload.amount_charged ?? 0,
+      phone_number: payload.phone_number,
+      notes: payload.notes
+    })
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.detail || 'Failed to register customer debt account')
+  }
   return res.json()
 }
 

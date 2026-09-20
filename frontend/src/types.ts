@@ -53,6 +53,20 @@ export interface CustomerDebt {
   phone_number?: string | null
   total_debt: number
   last_transaction_date?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export interface DebtTransaction {
+  id: number
+  debt_id: number
+  sale_id?: number | null
+  type: string
+  amount: number
+  balance_after: number
+  notes?: string | null
+  receipt_number?: string | null
+  created_at: string
 }
 
 export interface TransactionResult {

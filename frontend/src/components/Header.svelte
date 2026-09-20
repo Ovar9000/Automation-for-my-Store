@@ -2,15 +2,16 @@
   import { cart } from '../lib/cart.svelte'
   import { onMount } from 'svelte'
   import { fetchDailyReport } from '../lib/api'
-  import { Store, Clock, PauseCircle, ShieldAlert, Sparkles, HelpCircle, Smartphone } from 'lucide-svelte'
+  import { Store, Clock, PauseCircle, ShieldAlert, Sparkles, HelpCircle, Smartphone, BookOpen } from 'lucide-svelte'
 
   interface Props {
     onOpenParked: () => void
     onOpenShortcuts: () => void
     onOpenGCash: () => void
+    onOpenUtang: () => void
   }
 
-  let { onOpenParked, onOpenShortcuts, onOpenGCash }: Props = $props()
+  let { onOpenParked, onOpenShortcuts, onOpenGCash, onOpenUtang }: Props = $props()
 
   let currentTime = $state('')
   let drawerCash = $state<number | null>(null)
@@ -82,6 +83,17 @@
 
   <!-- Right Actions -->
   <div class="flex items-center gap-2">
+    <!-- Utang Ledger Button -->
+    <button
+      type="button"
+      onclick={onOpenUtang}
+      class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-all shadow-2xs cursor-pointer"
+      title="Customer Utang Ledger & Repayments (F7)"
+    >
+      <BookOpen class="w-4 h-4 text-amber-600" />
+      <span>Utang Ledger (F7)</span>
+    </button>
+
     <!-- GCash Service Button -->
     <button
       type="button"

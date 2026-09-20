@@ -140,8 +140,108 @@ def run_tests():
         assert g_data["gcash_detail"]["id"] > 0
         print(f"[+] GCash Cash-Out recorded successfully: Txn ID {g_data['transaction']['id']}, Ref: 504250429508, Fee: ₱10.00")
 
-        # 6. Test Legacy Cashier Fallback Route
-        print("\n--- 6. Testing Legacy Cashier Fallback Route ---")
+        # 6. Test Utang (Customer Credit / Palista) Full Lifecycle
+        print("\n--- 6. Testing Utang (Customer Credit) Full Lifecycle & Ledger ---")
+        # 6a. Register new debtor with initial 0 balance
+        test_debtor_name = "Aling Maria (Test)"
+        reg_resp = client.post("/api/debts/charge", json={
+            "customer_name": test_debtor_name,
+            "amount_charged": 0,
+            "phone_number": "09189998888",
+            "notes": "Purok 1 neighbor"
+        })
+        assert reg_resp.status_code == 200, f"Register debtor failed: {reg_resp.text}"
+        debtor = reg_resp.json()
+        debtor_id = debtor["id"]
+        assert debtor["customer_name"] == test_debtor_name
+        assert debtor["total_debt"] == 0.0
+        print(f"[+] Debtor registered: '{test_debtor_name}', Account ID: {debtor_id}")
+
+        # 6b. Test both debt listing endpoints (/api/debts and /api/debts/customers)
+        list_resp1 = client.get("/api/debts")
+        list_resp2 = client.get("/api/debts/customers")
+        assert list_resp1.status_code == 200
+        assert list_resp2.status_code == 200
+        names1 = [c["customer_name"] for c in list_resp1.json()]
+        names2 = [c["customer_name"] for c in list_resp2.json()]
+        assert test_debtor_name in names1
+        assert test_debtor_name in names2
+        print("[+] Both '/api/debts' and '/api/debts/customers' endpoints return debtor list successfully")
+
+        # 6c. Test search query filtering
+        search_resp = client.get(f"/api/debts?search=Maria")
+        assert search_resp.status_code == 200
+        search_results = search_resp.json()
+        assert any(c["customer_name"] == test_debtor_name for c in search_results)
+        print(f"[+] Debtor search filter (?search=Maria) found: {len(search_results)} record(s)")
+
+        # 6d. POS Utang Checkout: Buy items on credit (₱150 total, ₱50 downpayment, ₱100 to utang)
+        utang_checkout_payload = {
+            "items": [
+                {
+                    "product_id": prod_id,
+                    "product_name": sample_prod["name"],
+                    "quantity": 2.0,
+                    "unit_price": 75.0,
+                    "cost_price": 50.0,
+                    "subtotal": 150.0,
+                    "pack_label": "2 units"
+                }
+            ],
+            "total_amount": 150.0,
+            "payment_method": "UTANG",
+            "amount_tendered": 50.0,
+            "amount_paid_now": 50.0,
+            "customer_name": test_debtor_name,
+            "phone_number": "09189998888",
+            "notes": "Partial cash downpayment",
+            "print_receipt": False
+        }
+        utang_resp = client.post("/api/checkout", json=utang_checkout_payload)
+        assert utang_resp.status_code == 200, f"Utang checkout failed: {utang_resp.text}"
+        utang_txn = utang_resp.json()
+        assert utang_txn["payment_method"] == "UTANG"
+        print(f"[+] Utang sale completed: Receipt #{utang_txn['receipt_number']}, Total: ₱150.00, Downpayment: ₱50.00")
+
+        # 6e. Verify debt balance after sale
+        hist_resp = client.get(f"/api/debts/{debtor_id}/history")
+        assert hist_resp.status_code == 200, f"Debt history failed: {hist_resp.text}"
+        hist_data = hist_resp.json()
+        assert hist_data["customer"]["total_debt"] == 100.0, f"Expected ₱100.00 debt, got {hist_data['customer']['total_debt']}"
+        charge_entries = [h for h in hist_data["history"] if h["type"] == "CHARGE"]
+        assert len(charge_entries) > 0
+        assert charge_entries[0]["amount"] == 100.0
+        print(f"[+] Debt balance correctly updated to ₱100.00 with audit entry")
+
+        # 6f. Record debt repayment (₱60.00)
+        pay_resp = client.post(f"/api/debts/{debtor_id}/pay", json={
+            "payment_amount": 60.0,
+            "notes": "Weekly hulog"
+        })
+        assert pay_resp.status_code == 200, f"Pay debt failed: {pay_resp.text}"
+        pay_data = pay_resp.json()
+        assert pay_data["customer"]["total_debt"] == 40.0
+        print(f"[+] Partial payment of ₱60.00 accepted: New Balance = ₱40.00")
+
+        # 6g. Pay remaining balance (₱40.00)
+        pay_resp2 = client.post(f"/api/debts/{debtor_id}/pay", json={
+            "payment_amount": 40.0,
+            "notes": "Fully paid"
+        })
+        assert pay_resp2.status_code == 200
+        pay_data2 = pay_resp2.json()
+        assert pay_data2["customer"]["total_debt"] == 0.0
+        print(f"[+] Final payment of ₱40.00 accepted: New Balance = ₱0.00 (Cleared)")
+
+        # 6h. Verify Cash Drawer / Daily Report includes debt payments
+        rep_resp = client.get("/api/reports/daily")
+        assert rep_resp.status_code == 200
+        report = rep_resp.json()
+        assert report["total_debt_payments"] >= 100.0
+        print(f"[+] Daily Report verified: Total debt payments collected = ₱{report['total_debt_payments']:.2f}")
+
+        # 7. Test Legacy Cashier Fallback Route
+        print("\n--- 7. Testing Legacy Cashier Fallback Route ---")
         legacy_resp = client.get("/legacy-cashier")
         assert legacy_resp.status_code == 200
         assert "cashierApp()" in legacy_resp.text

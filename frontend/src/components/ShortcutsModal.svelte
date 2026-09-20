@@ -11,6 +11,7 @@
     { key: 'F2', desc: 'Focus Smart Barcode / Product Search Input' },
     { key: 'F4', desc: 'Hold / Park Current Cart ("Kwentahan Mamaya")' },
     { key: 'F5', desc: 'Open Payment / Complete Checkout' },
+    { key: 'F7', desc: 'Open Customer Utang Ledger & Record Repayments' },
     { key: 'Enter', desc: 'Confirm Scan / Add Highlighted Item / Finish Sale' },
     { key: 'Esc', desc: 'Close Active Modal / Clear Search / Reset State' },
     { key: '↑ / ↓', desc: 'Navigate Search Results Dropdown' },

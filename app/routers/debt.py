@@ -32,6 +32,7 @@ class DebtPaymentRequest(BaseModel):
 # ─── Endpoints ───────────────────────────────────────────────────────
 
 @router.get("")
+@router.get("/customers")
 async def list_debts(search: Optional[str] = Query(None), db=Depends(get_db)):
     """List all customer debt accounts with total debt > 0 or matching search."""
     if search and search.strip():
@@ -76,13 +77,13 @@ async def get_debt_history(debt_id: int, db=Depends(get_db)):
 
 @router.post("/charge")
 async def charge_debt(req: DebtChargeRequest, db=Depends(get_db)):
-    """Charge a sale amount (or partial balance) to a customer's Utang account."""
+    """Charge a sale amount (or partial balance) to a customer's Utang account, or register a customer."""
     clean_name = req.customer_name.strip()
     if not clean_name:
         raise HTTPException(status_code=400, detail="Customer name is required.")
 
-    if req.amount_charged <= 0:
-        raise HTTPException(status_code=400, detail="Amount charged must be greater than 0.")
+    if req.amount_charged < 0:
+        raise HTTPException(status_code=400, detail="Amount charged cannot be negative.")
 
     # Check if customer already exists (case-insensitive)
     cursor = await db.execute(
@@ -107,10 +108,12 @@ async def charge_debt(req: DebtChargeRequest, db=Depends(get_db)):
         debt_id = ins_cursor.lastrowid
 
     # Log debt transaction
+    tx_type = 'CHARGE' if req.amount_charged > 0 else 'REGISTER'
+    tx_notes = req.notes or ("Charged to Utang" if req.amount_charged > 0 else "Account Registered")
     await db.execute(
         """INSERT INTO debt_transactions (debt_id, sale_id, type, amount, balance_after, notes)
-           VALUES (?, ?, 'CHARGE', ?, ?, ?)""",
-        (debt_id, req.sale_id, req.amount_charged, new_total, req.notes or "Charged to Utang")
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (debt_id, req.sale_id, tx_type, req.amount_charged, new_total, tx_notes)
     )
 
     await db.commit()

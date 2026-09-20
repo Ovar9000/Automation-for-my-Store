@@ -15,6 +15,7 @@
   import ReceiptModal from './components/ReceiptModal.svelte'
   import ShortcutsModal from './components/ShortcutsModal.svelte'
   import GCashModal from './components/GCashModal.svelte'
+  import UtangModal from './components/UtangModal.svelte'
 
   let quickItems = $state<Product[]>([])
   let searchBarComponent = $state<any>(null)
@@ -25,6 +26,7 @@
   let showParkedModal = $state(false)
   let showShortcutsModal = $state(false)
   let showGCashModal = $state(false)
+  let showUtangModal = $state(false)
   let lastTransaction = $state<TransactionResult | null>(null)
 
   // Toast Notification state
@@ -103,6 +105,9 @@
       if (cart.items.length > 0 && !showPaymentModal) {
         showPaymentModal = true
       }
+    } else if (e.key === 'F7') {
+      e.preventDefault()
+      showUtangModal = true
     } else if (e.key === 'Escape') {
       if (weightModalProduct) {
         weightModalProduct = null
@@ -110,6 +115,8 @@
         showPaymentModal = false
       } else if (showGCashModal) {
         showGCashModal = false
+      } else if (showUtangModal) {
+        showUtangModal = false
       } else if (showParkedModal) {
         showParkedModal = false
       } else if (showShortcutsModal) {
@@ -145,6 +152,7 @@
     onOpenParked={() => showParkedModal = true}
     onOpenShortcuts={() => showShortcutsModal = true}
     onOpenGCash={() => showGCashModal = true}
+    onOpenUtang={() => showUtangModal = true}
   />
 
   <!-- Main POS Grid Content -->
@@ -214,6 +222,13 @@
         showToast(msg, 'success')
       }}
       onClose={() => showGCashModal = false}
+    />
+  {/if}
+
+  {#if showUtangModal}
+    <UtangModal
+      onPaymentRecorded={(msg) => showToast(msg, 'success')}
+      onClose={() => showUtangModal = false}
     />
   {/if}
 
