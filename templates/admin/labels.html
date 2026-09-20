@@ -12,7 +12,7 @@
       body * {
         visibility: hidden;
       }
-      #print-area, #print-area * {
+      #print-area, #print-area *, #cheat-sheet-area, #cheat-sheet-area * {
         visibility: visible;
       }
       #print-area {
@@ -22,6 +22,14 @@
         width: 58mm;
         margin: 0;
         padding: 4px;
+      }
+      #cheat-sheet-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 12px;
       }
       nav, header, button, .no-print {
         display: none !important;
@@ -35,9 +43,12 @@
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
       <div>
         <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Jar QR & Label Generator</h1>
-        <p class="text-slate-500 mt-1">Generate and print 58mm thermal sticker labels for loose refill jars, dispensers, and hanging mother-pack ties.</p>
+        <p class="text-slate-500 mt-1">Generate 58mm sticker labels or a laminated counter cheat-sheet for fast barcode scanning without touching loose sachets.</p>
       </div>
-      <div class="flex gap-2">
+      <div class="flex flex-wrap gap-2">
+        <button @click="printCheatSheet()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-2 text-xs cursor-pointer">
+          <span>📋 Print Counter Cheat-Sheet (A4 Mat)</span>
+        </button>
         <button @click="printAllLabels()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-2 text-xs cursor-pointer">
           <span>🖨️ Print Selected Stickers (58mm)</span>
         </button>
@@ -118,6 +129,26 @@
           <p style="font-size: 8px; margin: 0;">Sari-Sari Store POS</p>
         </div>
       </template>
+    </div>
+
+    <!-- Hidden Printable A4 Laminated Counter Cheat-Sheet Section -->
+    <div id="cheat-sheet-area" class="hidden">
+      <div style="font-family: sans-serif; max-width: 1000px; margin: 0 auto;">
+        <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px;">
+          <h2 style="font-size: 18px; font-weight: 800; margin: 0; text-transform: uppercase;">Sari-Sari Store — Counter Scanner Cheat Sheet</h2>
+          <p style="font-size: 11px; color: #444; margin: 2px 0;">Laminate and place on counter for instant barcode gun scanning of loose & tingi items.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+          <template x-for="item in labelItems" :key="'sheet-' + item.id">
+            <div style="border: 1px solid #ddd; border-radius: 8px; padding: 8px; text-align: center; background: #fff;">
+              <p style="font-size: 11px; font-weight: bold; margin: 0; height: 26px; overflow: hidden; line-height: 1.2;" x-text="item.name"></p>
+              <p style="font-size: 12px; font-weight: 800; margin: 2px 0; color: #047857;" x-text="'₱' + Number(item.refill_price || item.full_pack_price || item.selling_price).toFixed(2) + ' / ' + item.unit"></p>
+              <div :id="'sheet-qr-' + item.id" style="display: flex; justify-content: center; margin: 4px 0;"></div>
+              <p style="font-size: 8px; font-family: monospace; color: #666; margin: 0;" x-text="item.jar_code || item.pack_barcode || item.barcode"></p>
+            </div>
+          </template>
+        </div>
+      </div>
     </div>
 
     <!-- Quick Edit Modal -->

@@ -126,6 +126,34 @@ function labelsApp() {
       });
     },
 
+    printCheatSheet() {
+      const sheetArea = document.getElementById('cheat-sheet-area');
+      if (sheetArea) sheetArea.classList.remove('hidden');
+
+      this.labelItems.forEach(item => {
+        const container = document.getElementById(`sheet-qr-${item.id}`);
+        if (container) {
+          container.innerHTML = '';
+          const codeVal = item.jar_code || item.pack_barcode || item.barcode;
+          if (codeVal && typeof QRCode !== 'undefined') {
+            try {
+              new QRCode(container, {
+                text: codeVal,
+                width: 68,
+                height: 68,
+                correctLevel: QRCode.CorrectLevel.M
+              });
+            } catch (e) {}
+          }
+        }
+      });
+
+      setTimeout(() => {
+        window.print();
+        if (sheetArea) sheetArea.classList.add('hidden');
+      }, 250);
+    },
+
     printAllLabels() {
       window.print();
     }

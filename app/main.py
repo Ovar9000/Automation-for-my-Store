@@ -49,6 +49,10 @@ app = FastAPI(
 )
 
 # ─── Mount static files (CSS, JS, assets) ────────────────────────────
+DIST_ASSETS_DIR = STATIC_DIR / "dist" / "assets"
+if DIST_ASSETS_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(DIST_ASSETS_DIR)), name="spa-assets")
+
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # ─── Jinja2 templates ────────────────────────────────────────────────
@@ -61,7 +65,16 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 @app.get("/", response_class=HTMLResponse)
 async def cashier_page(request: Request):
-    """Cashier terminal — the main POS interface."""
+    """Cashier terminal — Svelte 5 high-speed SPA with fallback to Jinja2."""
+    spa_index = STATIC_DIR / "dist" / "index.html"
+    if spa_index.exists():
+        return HTMLResponse(content=spa_index.read_text(encoding="utf-8"))
+    return templates.TemplateResponse(request=request, name="cashier.html")
+
+
+@app.get("/legacy-cashier", response_class=HTMLResponse)
+async def legacy_cashier_page(request: Request):
+    """Legacy Alpine.js cashier terminal."""
     return templates.TemplateResponse(request=request, name="cashier.html")
 
 

@@ -130,6 +130,12 @@ async def run_all_tests():
         assert unit_scan["effective_unit_price"] == 12.0
         print(f"[+] Unit barcode scan: 1 pc @ ₱12.00")
 
+        # 6d. Variable-Weight Scale Barcode Scan (e.g. 21 + 5-digit PLU + 5-digit weight + check)
+        scale_barcode = f"21{prod_id:05d}005001"
+        scale_scan = await smart_scan_lookup(scale_barcode, db=db)
+        assert "scale_" in scale_scan["scan_type"]
+        print(f"[+] Scale barcode scan: PLU {prod_id:05d} resolved to {scale_scan['product']['name']}")
+
         # 7. Atomic Cash Sale with Mother-Pack Deduction
         print("\n--- Testing Atomic Cash Sale with Mother-Pack ---")
         sale_data = TransactionCreate(

@@ -22,6 +22,12 @@ router = APIRouter()
 # SMART SCAN & PRODUCT LOOKUP ROUTES
 # ═══════════════════════════════════════════════════════════════
 
+@router.post("/smart-scan")
+@router.get("/smart-scan")
+async def smart_scan_query(scanned_code: str = Query(...), db=Depends(get_db)):
+    return await smart_scan_lookup(code=scanned_code, db=db)
+
+
 @router.get("/products/smart-scan/{code}")
 async def smart_scan_lookup(code: str, db=Depends(get_db)):
     """
@@ -98,6 +104,58 @@ async def smart_scan_lookup(code: str, db=Depends(get_db)):
             "message": f"Scanned: {product['name']} (₱{product['selling_price']:.2f})"
         }
 
+    # 4. Check Variable-Measure / Weight-Embedded Scale Barcode (EAN-13 starting with 20, 21, or 02)
+    if (len(clean_code) in (12, 13)) and clean_code[:2] in ("20", "21", "02") and clean_code.isdigit():
+        plu_str = clean_code[2:7]
+        plu_clean = plu_str.lstrip("0") or "0"
+        value_int = int(clean_code[7:12])
+
+        cursor = await db.execute(
+            "SELECT * FROM products WHERE id = ? OR barcode = ? OR barcode = ?",
+            (int(plu_clean) if plu_clean.isdigit() else -1, plu_str, plu_clean)
+        )
+        row = await cursor.fetchone()
+        if row:
+            product = dict(row)
+            product["is_low_stock"] = product["stock_qty"] < product["low_stock_threshold"]
+
+            unit = product.get("unit", "pc").lower()
+            if unit in ("kg", "l"):
+                weight_qty = round(value_int / 1000.0, 3)
+                subtotal = round(weight_qty * float(product["selling_price"]), 2)
+                return {
+                    "scan_type": "scale_weight",
+                    "product": product,
+                    "quantity_to_add": weight_qty,
+                    "effective_unit_price": float(product["selling_price"]),
+                    "effective_subtotal": subtotal,
+                    "pack_label": f"Scale Weighed ({weight_qty:.3f}{unit})",
+                    "message": f"Scale Barcode: {product['name']} ({weight_qty:.3f}{unit} — ₱{subtotal:.2f})"
+                }
+            elif unit in ("g", "ml"):
+                qty = float(value_int)
+                subtotal = round((qty / 1000.0) * float(product["selling_price"]), 2)
+                return {
+                    "scan_type": "scale_weight",
+                    "product": product,
+                    "quantity_to_add": qty,
+                    "effective_unit_price": float(product["selling_price"]),
+                    "effective_subtotal": subtotal,
+                    "pack_label": f"Scale Weighed ({qty:.0f}{unit})",
+                    "message": f"Scale Barcode: {product['name']} ({qty:.0f}{unit} — ₱{subtotal:.2f})"
+                }
+            else:
+                price_val = round(value_int / 100.0, 2)
+                return {
+                    "scan_type": "scale_price",
+                    "product": product,
+                    "quantity_to_add": 1.0,
+                    "effective_unit_price": price_val,
+                    "effective_subtotal": price_val,
+                    "pack_label": f"Scale Tag (₱{price_val:.2f})",
+                    "message": f"Scale Barcode: {product['name']} (₱{price_val:.2f})"
+                }
+
     raise HTTPException(
         status_code=404,
         detail=f"No product matches scanned code: {clean_code}"
@@ -121,6 +179,45 @@ async def get_product_by_barcode(barcode: str, db=Depends(get_db)):
     row = await cursor.fetchone()
 
     if not row:
+        # Check scale barcode
+        if (len(clean_code) in (12, 13)) and clean_code[:2] in ("20", "21", "02") and clean_code.isdigit():
+            plu_str = clean_code[2:7]
+            plu_clean = plu_str.lstrip("0") or "0"
+            value_int = int(clean_code[7:12])
+            cursor = await db.execute(
+                "SELECT * FROM products WHERE id = ? OR barcode = ? OR barcode = ?",
+                (int(plu_clean) if plu_clean.isdigit() else -1, plu_str, plu_clean)
+            )
+            scale_row = await cursor.fetchone()
+            if scale_row:
+                product = dict(scale_row)
+                product["is_low_stock"] = product["stock_qty"] < product["low_stock_threshold"]
+                unit = product.get("unit", "pc").lower()
+                if unit in ("kg", "l"):
+                    weight_qty = round(value_int / 1000.0, 3)
+                    product["scan_type"] = "scale_weight"
+                    product["default_qty"] = weight_qty
+                    product["default_price"] = float(product["selling_price"])
+                    product["default_subtotal"] = round(weight_qty * float(product["selling_price"]), 2)
+                    product["pack_label"] = f"Scale Weighed ({weight_qty:.3f}{unit})"
+                    return product
+                elif unit in ("g", "ml"):
+                    qty = float(value_int)
+                    product["scan_type"] = "scale_weight"
+                    product["default_qty"] = qty
+                    product["default_price"] = float(product["selling_price"])
+                    product["default_subtotal"] = round((qty / 1000.0) * float(product["selling_price"]), 2)
+                    product["pack_label"] = f"Scale Weighed ({qty:.0f}{unit})"
+                    return product
+                else:
+                    price_val = round(value_int / 100.0, 2)
+                    product["scan_type"] = "scale_price"
+                    product["default_qty"] = 1.0
+                    product["default_price"] = price_val
+                    product["default_subtotal"] = price_val
+                    product["pack_label"] = f"Scale Tag (₱{price_val:.2f})"
+                    return product
+
         raise HTTPException(
             status_code=404,
             detail=f"No product found with barcode or QR code: {clean_code}"
@@ -180,6 +277,7 @@ async def search_products(q: str = Query(..., min_length=1, description="Search 
 
 
 @router.get("/products/quick")
+@router.get("/products/quick-items")
 async def get_quick_items(db=Depends(get_db)):
     """Get products marked for fast-access."""
     cursor = await db.execute(
@@ -204,6 +302,7 @@ import uuid
 from datetime import datetime
 
 @router.post("/transactions")
+@router.post("/checkout")
 async def create_transaction(data: TransactionCreate, db=Depends(get_db)):
     """
     Create a complete sale transaction atomically.
