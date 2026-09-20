@@ -1,0 +1,15 @@
+{
+  "name": "sari-sari-pos",
+  "version": "1.0.0",
+  "description": "Sari-Sari Store POS Cloud Integration",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.116.0"
+  }
+}

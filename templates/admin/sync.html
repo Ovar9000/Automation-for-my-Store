@@ -12,16 +12,20 @@
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
       <div>
         <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Cloud Sync & Database Backup</h1>
-        <p class="text-slate-500 mt-1">Connect your offline cashier app to your online cloud portal for remote reports and safe disaster recovery.</p>
+        <p class="text-slate-500 mt-1">Connect your offline cashier app to Supabase Cloud for off-site disaster recovery and data safety.</p>
       </div>
-      <div class="flex gap-2">
+      <div class="flex flex-wrap gap-2">
+        <button @click="uploadToSupabase()" :disabled="isUploadingSupabase"
+                class="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-2 text-xs cursor-pointer">
+          <span x-text="isUploadingSupabase ? '⏳ Uploading...' : '⚡ Upload .DB to Supabase'"></span>
+        </button>
         <button @click="pushToCloud()" :disabled="isSyncing"
                 class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-2 text-xs cursor-pointer">
-          <span x-text="isSyncing ? '⏳ Syncing...' : '☁️ Sync Now to Cloud'"></span>
+          <span x-text="isSyncing ? '⏳ Syncing...' : '☁️ Web Portal Sync'"></span>
         </button>
         <a href="/api/sync/download-db" download
            class="bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-2 text-xs cursor-pointer">
-          <span>💾 Download .DB Backup</span>
+          <span>💾 Download Local .DB</span>
         </a>
       </div>
     </div>
@@ -29,7 +33,7 @@
     <!-- Status Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-        <p class="text-xs text-slate-400 font-bold uppercase">Database Size</p>
+        <p class="text-xs text-slate-400 font-bold uppercase">Database File</p>
         <h3 class="text-2xl font-extrabold text-slate-800 mt-1" x-text="status.database_size_kb + ' KB'"></h3>
         <p class="text-[11px] text-slate-500 mt-1 font-mono truncate" x-text="status.database_file"></p>
       </div>
@@ -44,17 +48,84 @@
         <p class="text-[11px] text-slate-500 mt-1">Items, packs & jar refills</p>
       </div>
       <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-        <p class="text-xs text-slate-400 font-bold uppercase">Last Cloud Sync</p>
-        <h3 class="text-base font-extrabold text-slate-700 mt-2 font-mono" x-text="status.last_sync"></h3>
-        <p class="text-[11px] text-slate-400 mt-1" x-text="status.cloud_sync_endpoint ? 'Configured' : 'No URL Set'"></p>
+        <p class="text-xs text-slate-400 font-bold uppercase">Supabase Cloud Backup</p>
+        <h3 class="text-base font-extrabold text-slate-700 mt-2 font-mono" x-text="status.last_supabase_sync || 'Never'"></h3>
+        <p class="text-[11px] font-bold mt-1" :class="supabaseConnected ? 'text-emerald-600' : 'text-amber-600'"
+           x-text="supabaseConnected ? '🟢 Supabase Online' : '⚪ Not Tested Yet'"></p>
       </div>
     </div>
 
-    <!-- Configuration Panel -->
+    <!-- Supabase Cloud Protection Section -->
+    <div class="bg-white rounded-2xl border border-emerald-200 shadow-xs p-6 space-y-6">
+      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xl">🛡️</span>
+            <h2 class="text-lg font-bold text-slate-900">Supabase Cloud Disaster Recovery</h2>
+            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider"
+                  :class="supabaseConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'"
+                  x-text="supabaseConnected ? 'Connected' : 'Offline / Unverified'"></span>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">Upload encrypted SQLite snapshots to your Supabase Storage bucket so your store data survives hard drive crashes, power surges, or laptop theft.</p>
+        </div>
+        <div class="flex gap-2">
+          <button @click="testSupabase()" :disabled="isTestingSupabase"
+                  class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl text-xs transition-colors flex items-center gap-1.5 cursor-pointer">
+            <span x-text="isTestingSupabase ? 'Testing...' : '🔍 Test Connection'"></span>
+          </button>
+          <button @click="uploadToSupabase()" :disabled="isUploadingSupabase"
+                  class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors flex items-center gap-1.5 cursor-pointer">
+            <span x-text="isUploadingSupabase ? 'Uploading...' : '☁️ Upload Snapshot Now'"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">Supabase Project URL</label>
+          <input type="text" x-model="supabase.url" placeholder="https://xyz.supabase.co"
+                 class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:bg-white focus:outline-none focus:border-emerald-500">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">Supabase Publishable Key</label>
+          <input type="password" x-model="supabase.key" placeholder="sb_publishable_..."
+                 class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:bg-white focus:outline-none focus:border-emerald-500">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">Storage Bucket Name</label>
+          <input type="text" x-model="supabase.bucket" placeholder="store-backups"
+                 class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:bg-white focus:outline-none focus:border-emerald-500">
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center pt-2">
+        <p class="text-[11px] text-slate-400">
+          💡 First time? Run <code class="text-slate-600 font-bold">supabase_schema.sql</code> in your Supabase SQL editor to create the bucket and tables.
+        </p>
+        <button @click="saveSupabaseConfig()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-xs transition-colors cursor-pointer">
+          Save Supabase Settings
+        </button>
+      </div>
+
+      <!-- Cloud Backups List -->
+      <div x-show="supabaseBackups.length > 0" class="pt-4 border-t border-slate-100">
+        <h4 class="text-xs font-bold text-slate-700 mb-2">Cloud Snapshots Found in Bucket (<span x-text="supabaseBackups.length"></span>)</h4>
+        <div class="max-h-40 overflow-y-auto space-y-1">
+          <template x-for="item in supabaseBackups" :key="item.name">
+            <div class="flex items-center justify-between text-xs py-1.5 px-3 bg-slate-50 rounded-lg border border-slate-100">
+              <span class="font-mono text-slate-700" x-text="item.name"></span>
+              <span class="text-slate-400" x-text="item.created_at ? new Date(item.created_at).toLocaleString() : ''"></span>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Legacy Cloud Web Portal Configuration Panel -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-6">
       <div class="border-b border-slate-100 pb-4">
-        <h2 class="text-lg font-bold text-slate-900">Cloud Web Portal Configuration</h2>
-        <p class="text-xs text-slate-500 mt-0.5">When configured, clicking "Sync to Cloud" will push daily sales & inventory snapshots to your online account.</p>
+        <h2 class="text-lg font-bold text-slate-900">Custom Cloud Web Portal (Optional)</h2>
+        <p class="text-xs text-slate-500 mt-0.5">If you have an external custom webhook or online REST receiver, configure it here.</p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -74,26 +145,26 @@
 
       <div class="flex justify-end gap-3 pt-2">
         <button @click="saveConfig()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-xs transition-colors cursor-pointer">
-          Save Cloud Settings
+          Save Web Portal Settings
         </button>
       </div>
     </div>
 
-    <!-- How the Hybrid Architecture Works -->
+    <!-- Architecture Explanation Card -->
     <div class="bg-indigo-50/70 border border-indigo-200/80 rounded-2xl p-6 space-y-3">
-      <h3 class="font-extrabold text-indigo-900 text-sm">💡 How the Hybrid Offline + Online Architecture Works</h3>
+      <h3 class="font-extrabold text-indigo-900 text-sm">💡 How Your Sari-Sari POS Protects Your Data</h3>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-indigo-950">
         <div class="bg-white/80 p-4 rounded-xl border border-indigo-100">
-          <p class="font-bold text-slate-900 mb-1">1. 100% Offline Cashier</p>
-          <p class="text-slate-600">The Windows .EXE runs on local SQLite. Barcode scanner and 58mm printer work with zero internet delays.</p>
+          <p class="font-bold text-slate-900 mb-1">1. Local SQLite (WAL Mode)</p>
+          <p class="text-slate-600">The counter POS always operates 100% offline. Instant scanning and thermal printing with zero internet lag.</p>
         </div>
         <div class="bg-white/80 p-4 rounded-xl border border-indigo-100">
-          <p class="font-bold text-slate-900 mb-1">2. 1-Click Cloud Sync</p>
-          <p class="text-slate-600">Whenever connected to Wi-Fi/data, click "Sync Now" to upload all sales, debts, and daily reports to your online account.</p>
+          <p class="font-bold text-slate-900 mb-1">2. Supabase Cloud Storage</p>
+          <p class="text-slate-600">Click "Upload Snapshot" daily to push the database to Supabase Storage. Your data is mirrored safely in the cloud.</p>
         </div>
         <div class="bg-white/80 p-4 rounded-xl border border-indigo-100">
-          <p class="font-bold text-slate-900 mb-1">3. Mobile Admin Portal</p>
-          <p class="text-slate-600">Log in to your online website portal from your phone or home PC to view store revenue, profit, and low-stock alerts anytime.</p>
+          <p class="font-bold text-slate-900 mb-1">3. Complete Recovery</p>
+          <p class="text-slate-600">If your laptop breaks or gets stolen, download your latest snapshot from Supabase to resume operations instantly.</p>
         </div>
       </div>
     </div>

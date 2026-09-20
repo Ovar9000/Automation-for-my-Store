@@ -7,6 +7,15 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+# Node dependencies
+node_modules/
+npm-debug.log*
+
 # IDE and OS files
 .vscode/
 .idea/

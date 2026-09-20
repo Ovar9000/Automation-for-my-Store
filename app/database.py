@@ -220,7 +220,11 @@ DEFAULT_SETTINGS = {
     "gcash_fee_per_thousand": "10",              # Fee per 1000 PHP block
     "cloud_sync_enabled": "0",
     "cloud_sync_endpoint": "",
-    "cloud_api_key": ""
+    "cloud_api_key": "",
+    "supabase_url": "https://dveufoeavxegvcgityax.supabase.co",
+    "supabase_key": "sb_publishable_HRsrNqo7SMk_H90617TQ3Q_VJqZR5KC",
+    "supabase_bucket": "store-backups",
+    "last_supabase_sync": "Never"
 }
 
 # ─── Sample products for first-run demo ──────────────────────────────
