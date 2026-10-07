@@ -1,5 +1,5 @@
 export interface Product {
-  id: number
+  id?: number | null
   barcode?: string | null
   pack_barcode?: string | null
   jar_code?: string | null
@@ -29,7 +29,7 @@ export interface Product {
 
 export interface CartItem {
   id: string // unique UUID for cart item
-  product_id: number
+  product_id?: number | null
   product_name: string
   quantity: number
   unit_price: number

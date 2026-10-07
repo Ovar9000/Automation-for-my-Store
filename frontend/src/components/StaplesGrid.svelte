@@ -53,7 +53,7 @@
     const existing = quickItems.find(p => p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
     
     const productToAdd: Product = existing || {
-      id: item.id,
+      id: undefined,
       name: item.name,
       selling_price: item.price,
       cost_price: Number((item.price * 0.85).toFixed(2)),

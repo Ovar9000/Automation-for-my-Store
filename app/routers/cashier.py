@@ -382,61 +382,73 @@ async def create_transaction(data: TransactionCreate, db=Depends(get_db)):
     transaction_id = cursor.lastrowid
 
     # ── Insert Line Items & Deduct Stock ─────────────────────────────
-    for item in data.items:
-        await db.execute(
-            """INSERT INTO transaction_items
-               (transaction_id, product_id, product_name, quantity, unit_price, cost_price, subtotal, pack_label)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
-                transaction_id,
-                item.product_id,
-                item.product_name,
-                round(item.quantity, 2),
-                round(item.unit_price, 2),
-                round(item.cost_price, 2),
-                round(item.subtotal, 2),
-                item.pack_label
-            )
-        )
+    try:
+        for item in data.items:
+            valid_product_id = None
+            if item.product_id is not None:
+                p_cur = await db.execute("SELECT id FROM products WHERE id = ?", (item.product_id,))
+                p_row = await p_cur.fetchone()
+                if p_row:
+                    valid_product_id = item.product_id
 
-        await db.execute(
-            "UPDATE products SET stock_qty = stock_qty - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-            (round(item.quantity, 2), item.product_id)
-        )
-
-    # ── Atomic Utang Debt Ledger Update ──────────────────────────────
-    if method == "UTANG":
-        amount_charged = round(max(0, total_amount - (data.amount_paid_now or 0)), 2)
-        if amount_charged > 0:
-            c_cur = await db.execute(
-                "SELECT * FROM customer_debts WHERE LOWER(customer_name) = LOWER(?)",
-                (customer_name,)
-            )
-            existing = await c_cur.fetchone()
-            if existing:
-                debt_id = existing["id"]
-                new_debt = round(existing["total_debt"] + amount_charged, 2)
-                await db.execute(
-                    "UPDATE customer_debts SET total_debt = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                    (new_debt, debt_id)
-                )
-            else:
-                new_debt = amount_charged
-                ins_cur = await db.execute(
-                    "INSERT INTO customer_debts (customer_name, total_debt, phone_number, notes) VALUES (?, ?, ?, ?)",
-                    (customer_name, new_debt, data.phone_number, f"Created via Utang Sale #{receipt_no}")
-                )
-                debt_id = ins_cur.lastrowid
-
-            # Record in debt_transactions log
             await db.execute(
-                """INSERT INTO debt_transactions (debt_id, sale_id, type, amount, balance_after, notes)
-                   VALUES (?, ?, 'CHARGE', ?, ?, ?)""",
-                (debt_id, transaction_id, amount_charged, new_debt, f"Charged from Sale #{receipt_no}")
+                """INSERT INTO transaction_items
+                   (transaction_id, product_id, product_name, quantity, unit_price, cost_price, subtotal, pack_label)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    transaction_id,
+                    valid_product_id,
+                    item.product_name,
+                    round(item.quantity, 2),
+                    round(item.unit_price, 2),
+                    round(item.cost_price, 2),
+                    round(item.subtotal, 2),
+                    item.pack_label
+                )
             )
 
-    # ── Commit all changes atomically ────────────────────────────────
-    await db.commit()
+            if valid_product_id is not None:
+                await db.execute(
+                    "UPDATE products SET stock_qty = stock_qty - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (round(item.quantity, 2), valid_product_id)
+                )
+
+        # ── Atomic Utang Debt Ledger Update ──────────────────────────────
+        if method == "UTANG":
+            amount_charged = round(max(0, total_amount - (data.amount_paid_now or 0)), 2)
+            if amount_charged > 0:
+                c_cur = await db.execute(
+                    "SELECT * FROM customer_debts WHERE LOWER(customer_name) = LOWER(?)",
+                    (customer_name,)
+                )
+                existing = await c_cur.fetchone()
+                if existing:
+                    debt_id = existing["id"]
+                    new_debt = round(existing["total_debt"] + amount_charged, 2)
+                    await db.execute(
+                        "UPDATE customer_debts SET total_debt = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                        (new_debt, debt_id)
+                    )
+                else:
+                    new_debt = amount_charged
+                    ins_cur = await db.execute(
+                        "INSERT INTO customer_debts (customer_name, total_debt, phone_number, notes) VALUES (?, ?, ?, ?)",
+                        (customer_name, new_debt, data.phone_number, f"Created via Utang Sale #{receipt_no}")
+                    )
+                    debt_id = ins_cur.lastrowid
+
+                # Record in debt_transactions log
+                await db.execute(
+                    """INSERT INTO debt_transactions (debt_id, sale_id, type, amount, balance_after, notes)
+                       VALUES (?, ?, 'CHARGE', ?, ?, ?)""",
+                    (debt_id, transaction_id, amount_charged, new_debt, f"Charged from Sale #{receipt_no}")
+                )
+
+        # ── Commit all changes atomically ────────────────────────────────
+        await db.commit()
+    except Exception as exc:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to record transaction: {str(exc)}")
 
     # ── Fetch the created transaction for the response ───────────────
     cursor = await db.execute("SELECT * FROM transactions WHERE id = ?", (transaction_id,))
@@ -455,6 +467,7 @@ async def create_transaction(data: TransactionCreate, db=Depends(get_db)):
         "customer_name": txn.get("customer_name"),
         "receipt_printed": bool(txn["receipt_printed"]),
         "created_at": txn["created_at"],
+        "items": [item.model_dump() for item in data.items],
         "item_count": len(data.items),
     }
 
@@ -472,7 +485,7 @@ async def get_today_transactions(db=Depends(get_db)):
     """
     cursor = await db.execute(
         """SELECT * FROM transactions
-           WHERE date(created_at) = date('now', 'localtime')
+           WHERE date(created_at, 'localtime') = date('now', 'localtime')
            ORDER BY created_at DESC"""
     )
     rows = await cursor.fetchall()

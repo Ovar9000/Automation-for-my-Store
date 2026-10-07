@@ -84,6 +84,7 @@
 
   function handleCheckoutComplete(res: TransactionResult) {
     showPaymentModal = false
+    lastTransaction = res
     const changeVal = res.change ?? res.change_amount ?? 0
     showToast(`Sale complete! Change: ₱${changeVal.toFixed(2)}`, 'success')
   }

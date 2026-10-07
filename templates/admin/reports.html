@@ -184,15 +184,15 @@
                   <span class="font-semibold text-slate-700" x-text="prod.product_name"></span>
                 </div>
                 <div class="text-right text-xs">
-                  <span class="font-bold text-slate-800" x-text="topSortBy === 'quantity' ? prod.total_qty_sold + ' sold' : topSortBy === 'revenue' ? formatCurrency(prod.total_revenue) : formatCurrency(prod.total_profit)"></span>
-                  <span class="text-slate-400 ml-1.5" x-text="topSortBy === 'quantity' ? '('+formatCurrency(prod.total_revenue)+')' : '('+prod.total_qty_sold+' sold)'"></span>
+                  <span class="font-bold text-slate-800" x-text="topSortBy === 'quantity' ? (prod.total_qty_sold || prod.total_qty) + ' sold' : topSortBy === 'revenue' ? formatCurrency(prod.total_revenue) : formatCurrency(prod.total_profit)"></span>
+                  <span class="text-slate-400 ml-1.5" x-text="topSortBy === 'quantity' ? '('+formatCurrency(prod.total_revenue)+')' : '('+(prod.total_qty_sold || prod.total_qty)+' sold)'"></span>
                 </div>
               </div>
               
               <!-- Pure CSS horizontal bar -->
               <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
                 <div class="bg-blue-600 h-full rounded-full transition-all duration-500"
-                     :style="'width: ' + ((topSortBy === 'quantity' ? prod.total_qty_sold : topSortBy === 'revenue' ? prod.total_revenue : prod.total_profit) / maxTopValue * 100) + '%'"></div>
+                     :style="'width: ' + ((topSortBy === 'quantity' ? (prod.total_qty_sold || prod.total_qty) : topSortBy === 'revenue' ? prod.total_revenue : prod.total_profit) / maxTopValue * 100) + '%'"></div>
               </div>
             </div>
           </template>

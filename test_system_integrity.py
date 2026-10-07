@@ -221,8 +221,8 @@ async def run_all_tests():
         summary = z_res["summary"]
         assert summary["total_cash_sales"] >= 115.0
         assert summary["total_debt_payments"] >= 50.0
-        assert summary["total_cash_in_drawer"] == round(summary["total_cash_sales"] + summary["total_debt_payments"], 2)
-        print(f"[+] Z-Report accurately reconciled cash drawer (Cash Sales: ₱{summary['total_cash_sales']:.2f} + Debt Repayments: ₱{summary['total_debt_payments']:.2f} = Total Drawer: ₱{summary['total_cash_in_drawer']:.2f})")
+        assert summary["total_cash_in_drawer"] == round(summary["total_cash_sales"] + summary.get("total_utang_downpayments", 0) + summary["total_debt_payments"], 2)
+        print(f"[+] Z-Report accurately reconciled cash drawer (Cash Sales: ₱{summary['total_cash_sales']:.2f} + Utang Downpayments: ₱{summary.get('total_utang_downpayments', 0):.2f} + Debt Repayments: ₱{summary['total_debt_payments']:.2f} = Total Drawer: ₱{summary['total_cash_in_drawer']:.2f})")
 
         # 12. Financial Reports
         print("\n--- Testing Daily & Monthly Reports ---")

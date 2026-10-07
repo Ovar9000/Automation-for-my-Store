@@ -67,6 +67,19 @@ def verify_password(plain_password: str, stored_hash: str) -> bool:
         return False
 
 
+async def verify_admin_session(token: str, db: aiosqlite.Connection) -> bool:
+    """Verify that an admin session token exists and has not expired."""
+    if not token or not token.strip():
+        return False
+    cursor = await db.execute(
+        "SELECT token FROM admin_sessions WHERE token = ? AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)",
+        (token.strip(),)
+    )
+    row = await cursor.fetchone()
+    return row is not None
+
+
+
 # ─── SQL Schema ──────────────────────────────────────────────────────
 SCHEMA_SQL = """
 -- =============================================================
@@ -227,14 +240,31 @@ DEFAULT_SETTINGS = {
     "last_supabase_sync": "Never"
 }
 
-# ─── Sample products for first-run demo ──────────────────────────────
+# ─── Sample products for first-run demo & staples HUD ────────────────
 SAMPLE_PRODUCTS = [
     # (barcode, pack_barcode, jar_code, refill_price, refill_qty, name, cost, sell, stock, threshold, unit, is_quick, color, category, pcs_per_pack, bulk_cost, full_pack)
-    (None, None, "JAR:GAS-1L", 62.00, 1.0, "Gasoline Refill (1L Bottle)", 55.00, 62.00, 100.0, 20.0, "L", 0, "#ef4444", "Fuel", 1, None, None),
-    (None, None, "JAR:RICE-1KG", 45.00, 1.0, "Sinandomeng Rice (1 Kilo)", 38.00, 45.00, 150.0, 20.0, "kg", 0, "#f59e0b", "Staples", 1, None, None),
-    (None, None, "JAR:SUGAR-500G", 35.00, 0.5, "White Sugar Refill (500g)", 28.00, 35.00, 80.0, 15.0, "kg", 0, "#10b981", "Staples", 1, None, None),
-    (None, None, "JAR:OIL-250ML", 20.00, 0.25, "Cooking Oil (250ml Pouch)", 15.00, 20.00, 50.0, 10.0, "L", 0, "#eab308", "Cooking", 1, None, None),
-    (None, None, "JAR:CANDY-MAXX", 1.00, 1.0, "Maxx Menthol Candy (Jar)", 0.50, 1.00, 300.0, 50.0, "pc", 0, "#ec4899", "Snacks", 50, 22.00, 45.00),
+    (None, None, "JAR:GAS-1L", 62.00, 1.0, "Gasolina (1L Bote)", 55.00, 75.00, 100.0, 20.0, "L", 1, "#ef4444", "Staples", 1, None, None),
+    (None, None, None, None, 1.0, "Yelo (Tube/Block)", 2.00, 5.00, 50.0, 10.0, "pc", 1, "#06b6d4", "Staples", 1, None, None),
+    (None, None, None, None, 1.0, "Ice Water (Supot)", 1.00, 3.00, 80.0, 15.0, "pc", 1, "#0284c7", "Staples", 1, None, None),
+    (None, None, None, None, 1.0, "Ice Candy", 4.00, 10.00, 40.0, 10.0, "pc", 1, "#ec4899", "Staples", 1, None, None),
+    (None, None, None, None, 1.0, "Itlog (Medium)", 6.50, 8.00, 90.0, 20.0, "pc", 1, "#f59e0b", "Staples", 1, None, None),
+    (None, None, "JAR:OIL-250ML", 15.00, 0.25, "Mantika (Small Pouch)", 11.00, 15.00, 50.0, 10.0, "pc", 1, "#eab308", "Staples", 1, None, None),
+    (None, None, None, None, 1.0, "Uling (1 Plastic)", 14.00, 20.00, 30.0, 5.0, "pc", 1, "#78716c", "Staples", 1, None, None),
+    (None, None, "JAR:CANDY-MAXX", 1.00, 1.0, "Kendi (Maxx/Mentos)", 0.50, 2.00, 300.0, 50.0, "pc", 1, "#f43f5e", "Staples", 50, 22.00, 45.00),
+    (None, None, None, None, 1.0, "Kopiko Blanca (Sachet)", 11.50, 14.00, 100.0, 20.0, "pc", 1, "#f97316", "Kape & Tingi", 10, 110.00, 135.00),
+    (None, None, None, None, 10.0, "Kopiko Blanca (Banig 10s)", 110.00, 135.00, 20.0, 5.0, "pc", 1, "#ea580c", "Kape & Tingi", 10, 110.00, 135.00),
+    (None, None, None, None, 1.0, "Great Taste White (Sachet)", 11.50, 14.00, 80.0, 20.0, "pc", 1, "#d97706", "Kape & Tingi", 10, 110.00, 135.00),
+    (None, None, None, None, 1.0, "Nescafe 3-in-1 (Sachet)", 12.00, 15.00, 80.0, 20.0, "pc", 1, "#dc2626", "Kape & Tingi", 10, 115.00, 140.00),
+    (None, None, None, None, 1.0, "Marlboro Red (1 Stick)", 7.00, 9.00, 200.0, 40.0, "pc", 1, "#b91c1c", "Kape & Tingi", 20, 135.00, 175.00),
+    (None, None, None, None, 20.0, "Marlboro Red (1 Pack 20s)", 135.00, 175.00, 15.0, 5.0, "pc", 1, "#991b1b", "Kape & Tingi", 20, 135.00, 175.00),
+    (None, None, None, None, 1.0, "Fortune Red (1 Stick)", 6.00, 8.00, 150.0, 30.0, "pc", 1, "#059669", "Kape & Tingi", 20, 110.00, 150.00),
+    (None, None, None, None, 1.0, "Champion Cigarette (1 Stick)", 5.50, 7.00, 150.0, 30.0, "pc", 1, "#2563eb", "Kape & Tingi", 20, 100.00, 130.00),
+    (None, None, None, None, 1.0, "Bigas Dinorado (Special)", 46.00, 54.00, 150.0, 25.0, "kg", 1, "#65a30d", "Bigas & Feeds", 1, None, None),
+    (None, None, "JAR:RICE-1KG", 45.00, 1.0, "Bigas Sinandomeng (Regular)", 40.00, 48.00, 200.0, 30.0, "kg", 1, "#16a34a", "Bigas & Feeds", 1, None, None),
+    (None, None, "JAR:SUGAR-500G", 35.00, 0.5, "Asukal Puti (Refined)", 72.00, 85.00, 100.0, 15.0, "kg", 1, "#475569", "Bigas & Feeds", 1, None, None),
+    (None, None, None, None, 1.0, "Asukal Pula (Brown)", 60.00, 72.00, 100.0, 15.0, "kg", 1, "#b45309", "Bigas & Feeds", 1, None, None),
+    (None, None, None, None, 1.0, "Corn Grits / Mais", 30.00, 38.00, 80.0, 15.0, "kg", 1, "#ca8a04", "Bigas & Feeds", 1, None, None),
+    (None, None, None, None, 1.0, "Starter Feeds (Manok)", 36.00, 44.00, 80.0, 15.0, "kg", 1, "#0d9488", "Bigas & Feeds", 1, None, None),
     ("4800016121005", "4800016121005-PACK", None, None, 1.0, "Lucky Me Pancit Canton Original", 9.00, 12.00, 120.0, 20.0, "pc", 0, "#10b981", "Noodles", 10, 85.00, 115.00),
     ("4800361413022", "4800361413022-PACK", "JAR:KOPIKO-STICK", 7.00, 1.0, "Kopiko Brown Coffee 25g", 5.00, 7.00, 100.0, 15.0, "pc", 0, "#8b5cf6", "Beverages", 10, 48.00, 65.00),
 ]
@@ -306,17 +336,36 @@ async def init_db():
                 (hashed,)
             )
 
-        # ── Insert sample products if table is empty ──
-        cursor = await db.execute("SELECT COUNT(*) FROM products")
-        row = await cursor.fetchone()
-        if row[0] == 0:
-            await db.executemany(
-                """INSERT INTO products
-                   (barcode, pack_barcode, jar_code, refill_price, refill_qty, name, cost_price, selling_price, stock_qty,
-                    low_stock_threshold, unit, is_quick_item, quick_button_color, category, pcs_per_pack, bulk_cost_price, full_pack_price)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                SAMPLE_PRODUCTS
-            )
+        # ── Insert sample & staple products if not already present ──
+        for p in SAMPLE_PRODUCTS:
+            # Check by name first
+            p_name = p[5]
+            chk_cur = await db.execute("SELECT id FROM products WHERE name = ?", (p_name,))
+            if not await chk_cur.fetchone():
+                # Avoid duplicate barcode/jar_code conflict
+                barcode = p[0]
+                pack_barcode = p[1]
+                jar_code = p[2]
+                if barcode:
+                    b_chk = await db.execute("SELECT id FROM products WHERE barcode = ?", (barcode,))
+                    if await b_chk.fetchone():
+                        barcode = None
+                if pack_barcode:
+                    pb_chk = await db.execute("SELECT id FROM products WHERE pack_barcode = ?", (pack_barcode,))
+                    if await pb_chk.fetchone():
+                        pack_barcode = None
+                if jar_code:
+                    j_chk = await db.execute("SELECT id FROM products WHERE jar_code = ?", (jar_code,))
+                    if await j_chk.fetchone():
+                        jar_code = None
+
+                await db.execute(
+                    """INSERT INTO products
+                       (barcode, pack_barcode, jar_code, refill_price, refill_qty, name, cost_price, selling_price, stock_qty,
+                        low_stock_threshold, unit, is_quick_item, quick_button_color, category, pcs_per_pack, bulk_cost_price, full_pack_price)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (barcode, pack_barcode, jar_code, p[3], p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15], p[16])
+                )
 
         await db.commit()
     print(f"[DB] Database initialized and secured at: {DB_PATH}")

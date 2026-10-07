@@ -83,8 +83,10 @@
           <div class="flex items-center gap-1 flex-shrink-0 bg-slate-100 rounded-lg p-0.5">
             <button
               type="button"
+              disabled={item.unit !== 'pc' && !!item.pack_label}
               onclick={() => cart.updateQuantity(item.id, item.unit === 'pc' ? item.quantity - 1 : Number((item.quantity - 0.25).toFixed(3)))}
-              class="w-6 h-6 flex items-center justify-center rounded-md bg-white hover:bg-slate-200 text-slate-700 font-bold transition-colors"
+              class="w-6 h-6 flex items-center justify-center rounded-md bg-white hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700 font-bold transition-colors"
+              title={item.unit !== 'pc' && !!item.pack_label ? 'Weighed item has fixed weight' : 'Decrease'}
             >
               <Minus class="w-3 h-3" />
             </button>
@@ -95,8 +97,10 @@
 
             <button
               type="button"
+              disabled={item.unit !== 'pc' && !!item.pack_label}
               onclick={() => cart.updateQuantity(item.id, item.unit === 'pc' ? item.quantity + 1 : Number((item.quantity + 0.25).toFixed(3)))}
-              class="w-6 h-6 flex items-center justify-center rounded-md bg-white hover:bg-slate-200 text-slate-700 font-bold transition-colors"
+              class="w-6 h-6 flex items-center justify-center rounded-md bg-white hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700 font-bold transition-colors"
+              title={item.unit !== 'pc' && !!item.pack_label ? 'Weighed item has fixed weight' : 'Increase'}
             >
               <Plus class="w-3 h-3" />
             </button>

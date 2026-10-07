@@ -60,7 +60,8 @@ function reportsApp() {
       try {
         const res = await fetch(`/api/reports/top-products?period=${this.topPeriod}&sort_by=${this.topSortBy}&limit=${this.topLimit}`);
         if (res.ok) {
-          this.topProducts = await res.json();
+          const data = await res.json();
+          this.topProducts = Array.isArray(data) ? data : (data.products || []);
           
           // Calculate max value for horizontal bar graph scale factor
           if (this.topProducts.length > 0) {
@@ -70,7 +71,7 @@ function reportsApp() {
                 ? 'total_revenue' 
                 : 'total_profit';
             
-            this.maxTopValue = Math.max(...this.topProducts.map(p => p[key])) || 1;
+            this.maxTopValue = Math.max(...this.topProducts.map(p => p[key] ?? p['total_qty'] ?? 0)) || 1;
           } else {
             this.maxTopValue = 1;
           }

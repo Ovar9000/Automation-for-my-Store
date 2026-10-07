@@ -94,7 +94,16 @@ async def export_database_json(db=Depends(get_db)):
         try:
             cursor = await db.execute(f"SELECT * FROM {tbl}")
             rows = await cursor.fetchall()
-            payload["tables"][tbl] = [dict(r) for r in rows]
+            if tbl == "admin_settings":
+                sanitized_rows = []
+                for r in rows:
+                    row_dict = dict(r)
+                    if row_dict.get("key") in ("admin_password", "cloud_api_key", "supabase_key"):
+                        row_dict["value"] = "***"
+                    sanitized_rows.append(row_dict)
+                payload["tables"][tbl] = sanitized_rows
+            else:
+                payload["tables"][tbl] = [dict(r) for r in rows]
         except Exception:
             payload["tables"][tbl] = []
 

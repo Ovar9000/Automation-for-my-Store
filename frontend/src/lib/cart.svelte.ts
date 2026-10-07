@@ -61,7 +61,7 @@ class CartStore {
 
     // Look for existing item with matching product_id and pack_label
     const existingIndex = this.items.findIndex(
-      (item) => item.product_id === product.id && item.pack_label === (packLabel || null)
+      (item) => (product.id ? item.product_id === product.id : item.product_name === product.name) && item.pack_label === (packLabel || null)
     )
 
     if (existingIndex >= 0 && isPiece && !packLabel) {
@@ -77,8 +77,8 @@ class CartStore {
       // Add new cart item entry
       const subtotal = Number((quantity * price).toFixed(2))
       const newItem: CartItem = {
-        id: `${product.id}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        product_id: product.id,
+        id: `${product.id ?? 'item'}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        product_id: product.id ?? null,
         product_name: product.name,
         quantity,
         unit_price: price,

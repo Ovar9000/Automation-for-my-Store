@@ -115,12 +115,13 @@ class JarQRLabelItem(BaseModel):
 
 class CartItem(BaseModel):
     """A single item in the cashier's cart."""
-    product_id: int
+    product_id: Optional[int] = None    # Nullable for uncataloged or custom items
     product_name: str
     quantity: float = 1.0               # Decimal for weighted / refill items or pcs
     unit_price: float
     cost_price: float = 0
     subtotal: float                     # quantity * unit_price
+    unit: str = "pc"                    # 'pc', 'kg', 'L', 'ml', 'g'
     pack_label: Optional[str] = None    # E.g. 'Full-Pack (10pcs)', 'Jar Refill'
 
 
@@ -150,6 +151,8 @@ class TransactionResponse(BaseModel):
     customer_name: Optional[str] = None
     receipt_printed: bool
     created_at: str
+    items: List[CartItem] = []
+    item_count: int = 0
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -195,6 +198,7 @@ class DailyReportResponse(BaseModel):
     total_sales: float                  # Gross revenue from sales
     total_cost: float                   # Total COGS
     net_profit: float                   # Sales - COGS
+    cash_in_drawer: float = 0           # Cash in drawer (cash sales + downpayments + debt repayments)
     total_debt_payments: float = 0
     total_gcash_fees: float             # GCash fees collected
     transaction_count: int

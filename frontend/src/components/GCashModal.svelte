@@ -13,6 +13,7 @@
     AlertCircle
   } from 'lucide-svelte'
   import { onMount, onDestroy } from 'svelte'
+  import { calculateGCashFee } from '../lib/api'
 
   interface Props {
     onComplete: (msg: string) => void
@@ -48,8 +49,10 @@
   let isSubmitting = $state(false)
 
   // Calculate fees whenever amount or flowType changes
+  let calcTimer: any = null
   $effect(() => {
     const amt = parseFloat(inputAmount) || 0
+    const flow = flowType
     if (amt <= 0) {
       principalAmount = 0
       calculatedFee = 0
@@ -57,21 +60,32 @@
       return
     }
 
-    if (transactionType === 'GCASH_IN') {
+    if (flow === 'A') {
       // Flow A: Fee added on top
-      // Default: ₱10 per 1000
       const fee = Math.ceil(amt / 1000) * 10
       principalAmount = amt
       calculatedFee = fee
       totalCollected = amt + fee
     } else {
-      // GCash Out: Flow B (Customer transfers total amount, store deducts fee)
-      // If customer sent 1000, fee is 10, store gives 990 cash
+      // Flow B: Fee deducted from total
       const fee = Math.ceil(amt / 1000) * 10
       principalAmount = amt - fee > 0 ? amt - fee : amt
       calculatedFee = fee
       totalCollected = amt
     }
+
+    // Sync with backend calculation engine
+    clearTimeout(calcTimer)
+    calcTimer = setTimeout(async () => {
+      try {
+        const res = await calculateGCashFee(amt, flow)
+        principalAmount = res.principal_amount
+        calculatedFee = res.fee
+        totalCollected = res.total_collected
+      } catch (e) {
+        // Optimistic fallback already active
+      }
+    }, 150)
   })
 
   // Start Camera

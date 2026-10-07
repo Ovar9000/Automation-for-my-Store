@@ -12,6 +12,7 @@ only the print_service module needs to change — these routes stay the same.
 """
 
 from datetime import datetime
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from app.database import get_db
@@ -26,8 +27,9 @@ router = APIRouter()
 # ═══════════════════════════════════════════════════════════════
 
 class PrintReceiptRequest(BaseModel):
-    """Request to print a receipt for a specific transaction."""
-    transaction_id: int
+    """Request to print a receipt for a specific transaction or raw receipt text."""
+    transaction_id: Optional[int] = None
+    receipt_text: Optional[str] = None
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -35,23 +37,28 @@ class PrintReceiptRequest(BaseModel):
 # ═══════════════════════════════════════════════════════════════
 
 @router.post("/print/receipt")
+@router.post("/printer/print-receipt")
 async def print_receipt(data: PrintReceiptRequest, db=Depends(get_db)):
     """
-    Print a receipt for a completed transaction.
-
-    Business logic flow:
-    1. Look up the transaction by ID (verify it exists).
-    2. Fetch all line items for that transaction.
-    3. Load store settings (name, address, phone) for the receipt header.
-    4. Format the receipt using the receipt_formatter service.
-    5. Send the formatted text to the print_service.
-    6. Mark the transaction as receipt_printed = 1.
-    7. Return the receipt text (for frontend preview even if printer is offline).
-
-    The receipt format is designed for 58mm thermal paper (32 chars per line).
-    Even if the printer is disconnected, we still return the formatted text
-    so the frontend can display it in a receipt preview modal.
+    Print a receipt for a completed transaction or direct formatted text.
+    Handles both direct text printing and database transaction formatting.
     """
+    # ── Path A: Direct receipt text printing ────────────────────────
+    if data.receipt_text and data.receipt_text.strip():
+        print_success = print_service.print_text(data.receipt_text)
+        return {
+            "success": print_success,
+            "message": "Receipt sent to printer!" if print_success else "Printer error",
+            "receipt_text": data.receipt_text,
+            "transaction_id": data.transaction_id
+        }
+
+    # ── Path B: Look up transaction from database ───────────────────
+    if not data.transaction_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Either transaction_id or receipt_text must be provided."
+        )
 
     # ── Step 1: Look up the transaction ──────────────────────────────
     cursor = await db.execute(
@@ -130,6 +137,7 @@ async def print_receipt(data: PrintReceiptRequest, db=Depends(get_db)):
 
     return {
         "success": print_success,
+        "message": "Receipt sent to printer!" if print_success else "Printer error",
         "receipt_text": receipt_text,
         "transaction_id": data.transaction_id,
     }
@@ -179,16 +187,19 @@ async def print_z_report(db=Depends(get_db)):
     gcash_sale_row = await cursor.fetchone()
     total_gcash_sales = round(dict(gcash_sale_row)["total"], 2)
 
-    # ── Query Utang credit sales for today ───────────────────────────
+    # ── Query Utang credit sales & cash downpayments for today ──────
     cursor = await db.execute(
-        """SELECT COALESCE(SUM(total_amount), 0) as total
+        """SELECT COALESCE(SUM(total_amount), 0) as total,
+                  COALESCE(SUM(amount_tendered), 0) as downpayments
            FROM transactions
            WHERE date(created_at, 'localtime') = date('now', 'localtime')
              AND transaction_type = 'SALE'
              AND payment_method = 'UTANG'"""
     )
     utang_sale_row = await cursor.fetchone()
-    total_utang_sales = round(dict(utang_sale_row)["total"], 2)
+    utang_data = dict(utang_sale_row)
+    total_utang_sales = round(utang_data["total"], 2)
+    total_utang_downpayments = round(utang_data["downpayments"], 2)
 
     # ── Query GCash fee income for today ─────────────────────────────
     cursor = await db.execute(
@@ -214,7 +225,7 @@ async def print_z_report(db=Depends(get_db)):
     transaction_count = dict(count_row)["count"]
 
     # ── Calculate grand total & cash in drawer ───────────────────────
-    total_cash_drawer = round(total_cash_sales + total_debt_payments, 2)
+    total_cash_drawer = round(total_cash_sales + total_utang_downpayments + total_debt_payments, 2)
     grand_total = round(total_cash_sales + total_gcash_sales + total_utang_sales + total_gcash_fees, 2)
 
     # ── Load store name for receipt header ───────────────────────────
@@ -247,6 +258,7 @@ async def print_z_report(db=Depends(get_db)):
         "date": today_str,
         "summary": {
             "total_cash_sales": total_cash_sales,
+            "total_utang_downpayments": total_utang_downpayments,
             "total_debt_payments": total_debt_payments,
             "total_cash_in_drawer": total_cash_drawer,
             "total_gcash_sales": total_gcash_sales,

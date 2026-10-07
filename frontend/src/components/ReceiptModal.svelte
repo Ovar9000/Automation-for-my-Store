@@ -27,23 +27,28 @@
       center("Official POS Receipt"),
       "-".repeat(LINE_WIDTH),
       twoCol("Receipt #:", transaction.receipt_number),
-      twoCol("Date:", new Date(transaction.created_at).toLocaleDateString()),
-      twoCol("Time:", new Date(transaction.created_at).toLocaleTimeString()),
+      twoCol("Date:", transaction.created_at ? new Date(transaction.created_at).toLocaleDateString() : new Date().toLocaleDateString()),
+      twoCol("Time:", transaction.created_at ? new Date(transaction.created_at).toLocaleTimeString() : new Date().toLocaleTimeString()),
       "-".repeat(LINE_WIDTH)
     ]
 
-    for (const item of transaction.items) {
+    const items = transaction.items ?? []
+    for (const item of items) {
+      const pName = (item.product_name || 'Item').substring(0, 16)
+      const u = item.unit === 'pc' ? 'x' : (item.unit || 'x')
+      const sub = typeof item.subtotal === 'number' ? item.subtotal.toFixed(2) : '0.00'
       lines.push(twoCol(
-        `${item.quantity}${item.unit === 'pc' ? 'x' : item.unit} ${item.product_name.substring(0, 16)}`,
-        `P${item.subtotal.toFixed(2)}`
+        `${item.quantity}${u} ${pName}`,
+        `P${sub}`
       ))
     }
 
     lines.push("-".repeat(LINE_WIDTH))
-    lines.push(twoCol("TOTAL AMOUNT:", `P${transaction.total_amount.toFixed(2)}`))
-    lines.push(twoCol("Payment Method:", transaction.payment_method))
+    const total = typeof transaction.total_amount === 'number' ? transaction.total_amount.toFixed(2) : '0.00'
+    lines.push(twoCol("TOTAL AMOUNT:", `P${total}`))
+    lines.push(twoCol("Payment Method:", transaction.payment_method || 'CASH'))
     const changeVal = transaction.change ?? transaction.change_amount ?? 0
-    lines.push(twoCol("CHANGE (SUKLI):", `P${changeVal.toFixed(2)}`))
+    lines.push(twoCol("CHANGE (SUKLI):", `P${Number(changeVal).toFixed(2)}`))
 
     if (transaction.customer_name) {
       lines.push(twoCol("Customer:", transaction.customer_name))

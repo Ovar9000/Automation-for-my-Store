@@ -100,16 +100,40 @@ async def daily_report(
     gcash_row = await cursor.fetchone()
     gcash_data = dict(gcash_row)
 
-    # ── Calculate net profit ─────────────────────────────────────────
+    # ── Query Cash Sales & Utang Cash Downpayments ───────────────────
+    cursor = await db.execute(
+        """SELECT COALESCE(SUM(total_amount), 0) as cash_sales
+           FROM transactions
+           WHERE date(created_at, 'localtime') = ?
+             AND transaction_type = 'SALE'
+             AND payment_method = 'CASH'""",
+        (report_date,)
+    )
+    cash_sales = round((await cursor.fetchone())[0], 2)
+
+    cursor = await db.execute(
+        """SELECT COALESCE(SUM(amount_tendered), 0) as utang_downpayments
+           FROM transactions
+           WHERE date(created_at, 'localtime') = ?
+             AND transaction_type = 'SALE'
+             AND payment_method = 'UTANG'
+             AND amount_tendered > 0""",
+        (report_date,)
+    )
+    utang_downpayments = round((await cursor.fetchone())[0], 2)
+
+    # ── Calculate net profit & cash in drawer ─────────────────────────
     total_sales = round(sales_data["total_sales"], 2)
     total_cost = round(sales_data["total_cost"], 2)
     net_profit = round(total_sales - total_cost, 2)
+    cash_in_drawer = round(cash_sales + utang_downpayments + total_debt_payments, 2)
 
     return {
         "date": report_date,
         "total_sales": total_sales,
         "total_cost": total_cost,
         "net_profit": net_profit,
+        "cash_in_drawer": cash_in_drawer,
         "total_debt_payments": total_debt_payments,
         "total_gcash_fees": round(gcash_data["total_gcash_fees"], 2),
         "transaction_count": sales_data["transaction_count"],
@@ -301,6 +325,7 @@ async def top_products(
         product = dict(row)
         # Ensure all money values are properly rounded
         product["total_qty"] = round(product["total_qty"], 2)
+        product["total_qty_sold"] = round(product["total_qty"], 2)
         product["total_revenue"] = round(product["total_revenue"], 2)
         product["total_cost"] = round(product["total_cost"], 2)
         product["total_profit"] = round(product["total_profit"], 2)

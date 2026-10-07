@@ -105,7 +105,14 @@
           product,
           product.default_qty || scaleInfo.weightKg || 1,
           product.default_price || product.selling_price,
-          product.pack_label || `Scale Weighed (${product.default_qty}kg)`
+          product.pack_label || `Scale Weighed (${product.default_qty || scaleInfo.weightKg}kg)`
+        )
+      } else if (product.scan_type === 'scale_price') {
+        onSelectProduct(
+          product,
+          product.default_qty || 1,
+          product.default_price || product.selling_price,
+          product.pack_label || `Scale Price (₱${(product.default_price || product.selling_price).toFixed(2)})`
         )
       } else if (product.scan_type === 'mother_pack') {
         onSelectProduct(
